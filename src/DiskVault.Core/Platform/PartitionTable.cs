@@ -35,7 +35,7 @@ public static class PartitionTable
     {
         var mbr = new byte[sectorSize];
         disk.Read(0, mbr);
-        if (mbr[510] != 0x55 || mbr[511] != 0xAA) throw new InvalidDataException($"{disk.Name} にパーティションテーブルがありません。");
+        if (mbr[510] != 0x55 || mbr[511] != 0xAA) throw new InvalidDataException(T("{0} にパーティションテーブルがありません。", disk.Name));
         var rec = new DiskRecord { Size = disk.Length, SectorSize = sectorSize };
         bool protective = false;
         for (int i = 0; i < 4; i++) if (mbr[446 + i * 16 + 4] == 0xEE) protective = true;
@@ -43,13 +43,13 @@ public static class PartitionTable
         {
             var hdr = new byte[sectorSize];
             disk.Read(sectorSize, hdr);
-            if (!hdr.AsSpan(0, 8).SequenceEqual("EFI PART"u8)) throw new InvalidDataException("GPT ヘッダがありません。");
+            if (!hdr.AsSpan(0, 8).SequenceEqual("EFI PART"u8)) throw new InvalidDataException(T("GPT ヘッダがありません。"));
             rec.Style = "GPT";
             rec.DiskGuid = new Guid(hdr.AsSpan(56, 16)).ToString();
             long entLba = BinaryPrimitives.ReadInt64LittleEndian(hdr.AsSpan(72));
             int count = (int)BinaryPrimitives.ReadUInt32LittleEndian(hdr.AsSpan(80));
             int esize = (int)BinaryPrimitives.ReadUInt32LittleEndian(hdr.AsSpan(84));
-            if (count > 1024 || esize < 128 || esize > 1024) throw new InvalidDataException("GPT ヘッダが不正です。");
+            if (count > 1024 || esize < 128 || esize > 1024) throw new InvalidDataException(T("GPT ヘッダが不正です。"));
             int bytes = (count * esize + sectorSize - 1) / sectorSize * sectorSize;
             var ents = new byte[bytes];
             disk.Read(entLba * sectorSize, ents);
@@ -148,7 +148,7 @@ public static class PartitionTable
         int entSectors = count * esize / sectorSize;
         long lastUsable = sectors - 1 - entSectors - 1;
         long maxEnd = d.Partitions.Count == 0 ? 0 : d.Partitions.Max(p => (p.Offset + p.Length) / sectorSize - 1);
-        if (maxEnd > lastUsable) throw new IOException($"復元先ディスク（{Fmt.Size(target.Length)}）が小さすぎます。");
+        if (maxEnd > lastUsable) throw new IOException(T("復元先ディスク（{0}）が小さすぎます。", Fmt.Size(target.Length)));
         var guid = d.DiskGuid != null ? Guid.Parse(d.DiskGuid) : Guid.NewGuid();
 
         byte[] Header(long myLba, long altLba, long entLba)

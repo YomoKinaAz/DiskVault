@@ -25,6 +25,9 @@ static class SelfTest
 
     public static int Run(Args a)
     {
+        // テストはメール本文などの日本語を照合するので、表示言語にかかわらず日本語で動かす
+        Environment.SetEnvironmentVariable("DISKVAULT_LANG", "ja");
+        Loc.Set("ja");
         var work = a.Pos(0) ?? Path.Combine(Path.GetTempPath(), "dvault-selftest-" + Environment.ProcessId);
         if (Directory.Exists(work)) Directory.Delete(work, true);
         Directory.CreateDirectory(work);

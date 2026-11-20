@@ -27,12 +27,12 @@ static class ServiceCtl
     public static string Describe()
     {
         var ping = Ipc.Call(new IpcRequest { Cmd = "ping" }, 500);
-        if (ping?.Ok == true) return $"実行中（v{ping.Version}）";
+        if (ping?.Ok == true) return T("実行中（v{0}）", ping.Version);
         return Status() switch
         {
-            null => "未登録",
-            ServiceControllerStatus.Running => "起動中…",
-            ServiceControllerStatus.Stopped => File.Exists(ErrorLog) ? $"停止（エラーの記録: {ErrorLog}）" : "停止",
+            null => T("未登録"),
+            ServiceControllerStatus.Running => T("起動中…"),
+            ServiceControllerStatus.Stopped => File.Exists(ErrorLog) ? T("停止（エラーの記録: {0}）", ErrorLog) : T("停止"),
             var s => s.ToString()!,
         };
     }
@@ -42,7 +42,7 @@ static class ServiceCtl
     /// <summary>サービスの exe を install / uninstall で実行する（管理者権限が必要）。</summary>
     public static (int Code, string Output) RunServiceExe(string verb)
     {
-        if (!File.Exists(ServiceExe)) return (-1, $"{ServiceExe} が見つかりません。");
+        if (!File.Exists(ServiceExe)) return (-1, T("{0} が見つかりません。", ServiceExe));
         var p = Process.Start(new ProcessStartInfo(ServiceExe, verb) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, StandardOutputEncoding = System.Text.Encoding.UTF8 })!;
         var o = p.StandardOutput.ReadToEnd();
         p.WaitForExit();

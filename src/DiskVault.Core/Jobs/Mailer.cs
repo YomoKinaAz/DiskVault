@@ -11,8 +11,8 @@ public static class Mailer
 {
     public static void Send(MailConfig c, string subject, string text, string? html = null, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(c.Host)) throw new InvalidOperationException("SMTP サーバーが設定されていません。");
-        if (c.To.Count == 0) throw new InvalidOperationException("宛先が設定されていません。");
+        if (string.IsNullOrWhiteSpace(c.Host)) throw new InvalidOperationException(T("SMTP サーバーが設定されていません。"));
+        if (c.To.Count == 0) throw new InvalidOperationException(T("宛先が設定されていません。"));
         var msg = new MimeMessage();
         msg.From.Add(MailboxAddress.Parse(string.IsNullOrWhiteSpace(c.From) ? c.User ?? "diskvault@localhost" : c.From));
         foreach (var t in c.To) msg.To.Add(MailboxAddress.Parse(t));
@@ -44,7 +44,7 @@ public static class Mailer
         if (c.When == "problems" && r.Status == JobStatus.Success) return null;
         try
         {
-            Send(c, $"{r.StatusText}: {r.JobName}（{Environment.MachineName}）", Text(r), Html(r));
+            Send(c, T("{0}: {1}（{2}）", r.StatusText, r.JobName, Environment.MachineName), Text(r), Html(r));
             return null;
         }
         catch (Exception e) when (e is IOException or InvalidOperationException or UnauthorizedAccessException or System.Net.Sockets.SocketException
@@ -58,19 +58,19 @@ public static class Mailer
     static string Text(JobResult r)
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"ジョブ: {r.JobName}");
+        sb.AppendLine(T("ジョブ: {0}", r.JobName));
         sb.AppendLine($"PC: {Environment.MachineName}");
-        sb.AppendLine($"結果: {r.StatusText}");
-        sb.AppendLine($"種別: {(r.Kind == Storage.PointKind.Full ? "フル" : "増分")}");
-        sb.AppendLine($"開始: {r.Start:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine($"終了: {r.End:yyyy-MM-dd HH:mm:ss}（{Fmt.Duration(r.End - r.Start)}）");
-        if (r.PointId != null) sb.AppendLine($"復元ポイント: {r.PointId}");
-        if (r.ReadBytes > 0) sb.AppendLine($"読み取り {Fmt.Size(r.ReadBytes)} / 新規 {Fmt.Size(r.NewBytes)} / 保存 {Fmt.Size(r.StoredBytes)}");
-        if (r.Points > 0) sb.AppendLine($"保持中の復元ポイント: {r.Points}");
-        if (r.Error != null) sb.AppendLine($"エラー: {r.Error}");
-        foreach (var w in r.Warnings) sb.AppendLine($"警告: {w}");
+        sb.AppendLine(T("結果: {0}", r.StatusText));
+        sb.AppendLine(T("種別: {0}", r.Kind == Storage.PointKind.Full ? T("フル") : T("増分")));
+        sb.AppendLine(T("開始: {0:yyyy-MM-dd HH:mm:ss}", r.Start));
+        sb.AppendLine(T("終了: {0:yyyy-MM-dd HH:mm:ss}（{1}）", r.End, Fmt.Duration(r.End - r.Start)));
+        if (r.PointId != null) sb.AppendLine(T("復元ポイント: {0}", r.PointId));
+        if (r.ReadBytes > 0) sb.AppendLine(T("読み取り {0} / 新規 {1} / 保存 {2}", Fmt.Size(r.ReadBytes), Fmt.Size(r.NewBytes), Fmt.Size(r.StoredBytes)));
+        if (r.Points > 0) sb.AppendLine(T("保持中の復元ポイント: {0}", r.Points));
+        if (r.Error != null) sb.AppendLine(T("エラー: {0}", r.Error));
+        foreach (var w in r.Warnings) sb.AppendLine(T("警告: {0}", w));
         sb.AppendLine();
-        sb.AppendLine("--- ログ ---");
+        sb.AppendLine(T("--- ログ ---"));
         foreach (var l in r.LogTail) sb.AppendLine(l);
         return sb.ToString();
     }
@@ -81,14 +81,14 @@ public static class Mailer
         string color = r.Status switch { JobStatus.Success => "#1a7f37", JobStatus.Warning => "#9a6700", _ => "#cf222e" };
         var rows = new List<(string, string)>
         {
-            ("ジョブ", r.JobName), ("PC", Environment.MachineName), ("種別", r.Kind == Storage.PointKind.Full ? "フル" : "増分"),
-            ("開始", $"{r.Start:yyyy-MM-dd HH:mm:ss}"), ("所要時間", Fmt.Duration(r.End - r.Start)),
+            (T("ジョブ"), r.JobName), ("PC", Environment.MachineName), (T("種別"), r.Kind == Storage.PointKind.Full ? T("フル") : T("増分")),
+            (T("開始"), $"{r.Start:yyyy-MM-dd HH:mm:ss}"), (T("所要時間"), Fmt.Duration(r.End - r.Start)),
         };
-        if (r.PointId != null) rows.Add(("復元ポイント", r.PointId));
-        if (r.ReadBytes > 0) rows.Add(("データ量", $"読み取り {Fmt.Size(r.ReadBytes)} / 新規 {Fmt.Size(r.NewBytes)} / 保存 {Fmt.Size(r.StoredBytes)}"));
-        if (r.Points > 0) rows.Add(("保持中のポイント", r.Points.ToString()));
-        if (r.Error != null) rows.Add(("エラー", r.Error));
-        foreach (var w in r.Warnings) rows.Add(("警告", w));
+        if (r.PointId != null) rows.Add((T("復元ポイント"), r.PointId));
+        if (r.ReadBytes > 0) rows.Add((T("データ量"), T("読み取り {0} / 新規 {1} / 保存 {2}", Fmt.Size(r.ReadBytes), Fmt.Size(r.NewBytes), Fmt.Size(r.StoredBytes))));
+        if (r.Points > 0) rows.Add((T("保持中のポイント"), r.Points.ToString()));
+        if (r.Error != null) rows.Add((T("エラー"), r.Error));
+        foreach (var w in r.Warnings) rows.Add((T("警告"), w));
         var sb = new StringBuilder();
         sb.Append("<div style=\"font-family:'Yu Gothic UI','Meiryo',sans-serif;font-size:14px\">");
         sb.Append($"<div style=\"font-size:18px;font-weight:bold;color:{color};margin-bottom:8px\">{E(r.StatusText)}</div>");

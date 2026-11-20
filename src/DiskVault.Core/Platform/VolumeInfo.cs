@@ -20,7 +20,7 @@ public sealed class VolumeInfo
     public long? ExtentLength { get; init; }
     public bool IsSystem { get; init; }
 
-    public string Display => (Letter ?? "(文字なし)") + (string.IsNullOrEmpty(Label) ? "" : $" [{Label}]");
+    public string Display => (Letter ?? T("(文字なし)")) + (string.IsNullOrEmpty(Label) ? "" : $" [{Label}]");
 
     public static unsafe List<VolumeInfo> Enumerate()
     {
@@ -104,7 +104,7 @@ public static unsafe class DiskLayout
         int got;
         fixed (byte* b = buf)
             if (!Native.DeviceIoControl(h, Native.IOCTL_DISK_GET_DRIVE_LAYOUT_EX, null, 0, b, size, out got, 0))
-                throw Native.Error($"{path} の構成取得", Marshal.GetLastPInvokeError());
+                throw Native.Error(T("{0} の構成取得", path), Marshal.GetLastPInvokeError());
         var span = buf.AsSpan();
         int style = BitConverter.ToInt32(buf, 0);
         int count = BitConverter.ToInt32(buf, 4);
@@ -125,7 +125,7 @@ public static unsafe class DiskLayout
             rec.Style = "MBR";
             rec.MbrSignature = BitConverter.ToUInt32(buf, 8);
         }
-        else throw new NotSupportedException($"ディスク {diskNumber} は初期化されていません（RAW）。");
+        else throw new NotSupportedException(T("ディスク {0} は初期化されていません（RAW）。", diskNumber));
         for (int i = 0; i < count; i++)
         {
             var e = span.Slice(48 + i * 144, 144);
@@ -179,7 +179,7 @@ public static unsafe class DiskLayout
         foreach (var n in DiskNumbers())
         {
             var vs = vols.Where(v => v.Disk == n).ToList();
-            var names = string.Join("、", vs.Select(v => v.Letter ?? v.FileSystem ?? "?"));
+            var names = string.Join(T("、"), vs.Select(v => v.Letter ?? v.FileSystem ?? "?"));
             try
             {
                 var d = Read(n);
@@ -189,7 +189,7 @@ public static unsafe class DiskLayout
             {
                 using var h = Native.CreateFileW($@"\\.\PhysicalDrive{n}", 0, Native.FILE_SHARE_READ | Native.FILE_SHARE_WRITE, 0, Native.OPEN_EXISTING, 0, 0);
                 long size = h.IsInvalid ? 0 : Native.GetDiskSizeEx(h) ?? 0;
-                list.Add(new(n, size, h.IsInvalid ? null : Model(h), "未初期化", 0, false, names));
+                list.Add(new(n, size, h.IsInvalid ? null : Model(h), T("未初期化"), 0, false, names));
             }
         }
         return list;

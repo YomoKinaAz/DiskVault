@@ -44,7 +44,7 @@ public sealed class HandleTarget : IVolumeTarget
 
     public void Write(long offset, ReadOnlySpan<byte> data)
     {
-        if (offset < 0 || offset + data.Length > Length) throw new ArgumentOutOfRangeException(nameof(offset), $"{Name}: 書き込みが範囲外です。");
+        if (offset < 0 || offset + data.Length > Length) throw new ArgumentOutOfRangeException(nameof(offset), T("{0}: 書き込みが範囲外です。", Name));
         RandomAccess.Write(_h, data, _base + offset);
     }
 
@@ -62,7 +62,7 @@ public sealed class SubTarget(IVolumeTarget parent, long offset, long length) : 
     public long Length => length;
     public void Write(long off, ReadOnlySpan<byte> data)
     {
-        if (off < 0 || off + data.Length > length) throw new ArgumentOutOfRangeException(nameof(off), "パーティションの範囲外への書き込みです。");
+        if (off < 0 || off + data.Length > length) throw new ArgumentOutOfRangeException(nameof(off), T("パーティションの範囲外への書き込みです。"));
         parent.Write(offset + off, data);
     }
     public void Read(long off, Span<byte> buffer) => parent.Read(offset + off, buffer);
@@ -85,13 +85,13 @@ public static class RestoreEngine
         var grow = new List<PartitionRecord>();
         long need = layout.Partitions.Count == 0 ? 0 : layout.Partitions.Max(x => x.Offset + x.Length) + 1024 * 1024;
         if (target.Length < need)
-            throw new IOException($"復元先ディスク（{Fmt.Size(target.Length)}）が小さすぎます。少なくとも {Fmt.Size(need)} 必要です。");
+            throw new IOException(T("復元先ディスク（{0}）が小さすぎます。少なくとも {1} 必要です。", Fmt.Size(target.Length), Fmt.Size(need)));
         // 先頭 1MiB と末尾 1MiB を消してから新しいテーブルを書く（古い GPT や署名の残骸を消す）
         var zero = new byte[1024 * 1024];
         target.Write(0, zero);
         target.Write(target.Length - zero.Length, zero);
         Platform.PartitionTable.Write(layout, target, disk.SectorSize);
-        log($"パーティションテーブル（{layout.Style}、{layout.Partitions.Count} 個）を書き込みました。");
+        log(T("パーティションテーブル（{0}、{1} 個）を書き込みました。", layout.Style, layout.Partitions.Count));
         foreach (var part in layout.Partitions.OrderBy(x => x.Offset))
         {
             ct.ThrowIfCancellationRequested();
@@ -102,14 +102,14 @@ public static class RestoreEngine
             string size = orig != null && orig.Length != part.Length ? $"{Fmt.Size(orig.Length)} → {Fmt.Size(part.Length)}" : Fmt.Size(part.Length);
             if (part.Volume is not int vi)
             {
-                log($"  パーティション {part.Number}（{part.Kind}、{size}）: 中身なしで作成");
+                log(T("  パーティション {0}（{1}、{2}）: 中身なしで作成", part.Number, part.Kind, size));
                 continue;
             }
             var vol = p.Volumes[vi];
-            log($"  パーティション {part.Number}（{part.Kind}、{size}）← {vol.Display.Trim()}");
+            log(T("  パーティション {0}（{1}、{2}）← {3}", part.Number, part.Kind, size, vol.Display.Trim()));
             if (part.Length < vol.Size)
             {
-                if (vol.FileSystem != "NTFS") throw new InvalidOperationException($"パーティション {part.Number} は NTFS ではないので縮小できません。");
+                if (vol.FileSystem != "NTFS") throw new InvalidOperationException(T("パーティション {0} は NTFS ではないので縮小できません。", part.Number));
                 RestoreVolume(repo, p, vi, sub, writeUnused, progress, ct, limit: part.Length);
                 using var src = new PointVolumeSource(repo, p, vi);
                 Platform.NtfsResize.ShrinkOffline(src, sub, part.Length, log);
@@ -159,7 +159,7 @@ public static class RestoreEngine
         Patch(0);
         if (ntfs) Patch(BitConverter.ToInt64(b, 0x28) * bps);
         if (fat32 && BitConverter.ToUInt16(b, 0x32) is var bk and > 0 and < 0xFFFF) Patch((long)bk * bps);
-        log?.Invoke($"    ブートセクタの開始位置を {old} → {startLba} セクタに更新しました。");
+        log?.Invoke(T("    ブートセクタの開始位置を {0} → {1} セクタに更新しました。", old, startLba));
         return true;
     }
     /// <summary>
@@ -175,7 +175,7 @@ public static class RestoreEngine
         long blocks = (end + map.BlockSize - 1) / map.BlockSize;
         int LenOf(long b) => (int)Math.Min(map.LengthOf(b), end - b * map.BlockSize);
         if (target.Length < end)
-            throw new IOException($"復元先 {target.Name}（{Fmt.Size(target.Length)}）が元のボリューム（{Fmt.Size(map.VolumeSize)}）より小さいです。");
+            throw new IOException(T("復元先 {0}（{1}）が元のボリューム（{2}）より小さいです。", target.Name, Fmt.Size(target.Length), Fmt.Size(map.VolumeSize)));
         using var store = repo.OpenChain(p.Chain, forWrite: false);
         int bs = map.BlockSize;
         long total = 0;
@@ -230,13 +230,13 @@ public static class RestoreEngine
             if (progress != null && report.ElapsedMilliseconds >= 500)
             {
                 report.Restart();
-                progress.Report(new RestoreProgress("復元中", done, total, done / Math.Max(0.001, sw.Elapsed.TotalSeconds)));
+                progress.Report(new RestoreProgress(T("復元中"), done, total, done / Math.Max(0.001, sw.Elapsed.TotalSeconds)));
             }
         }
         var tf = Stopwatch.StartNew();
         target.Flush();
         if (trace) Console.Error.WriteLine($"[trace] restore decode {tDecode.ElapsedMilliseconds} ms, write {tWrite.ElapsedMilliseconds} ms, flush {tf.ElapsedMilliseconds} ms");
-        progress?.Report(new RestoreProgress("完了", done, total, done / Math.Max(0.001, sw.Elapsed.TotalSeconds)));
+        progress?.Report(new RestoreProgress(T("完了"), done, total, done / Math.Max(0.001, sw.Elapsed.TotalSeconds)));
     }
 }
 

@@ -41,7 +41,7 @@ public sealed class HandleSource : IVolumeSource
         var h = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         long size = RandomAccess.GetLength(h);
         if (length < 0) length = size - offset;
-        if (offset < 0 || offset + length > size) { h.Dispose(); throw new ArgumentOutOfRangeException(nameof(offset), "イメージの範囲外です。"); }
+        if (offset < 0 || offset + length > size) { h.Dispose(); throw new ArgumentOutOfRangeException(nameof(offset), T("イメージの範囲外です。")); }
         return new HandleSource(path, h, offset, length, 512, false);
     }
 
@@ -59,10 +59,10 @@ public sealed class HandleSource : IVolumeSource
             h.Dispose();
             throw Native.Error(path, err);
         }
-        long len = Native.GetLength(h) ?? throw new IOException($"{path} のサイズを取得できません。");
+        long len = Native.GetLength(h) ?? throw new IOException(T("{0} のサイズを取得できません。", path));
         int ss = Native.GetSectorSize(h) ?? 512;
         if (length < 0) length = len - offset;
-        if (offset < 0 || offset + length > len) { h.Dispose(); throw new ArgumentOutOfRangeException(nameof(offset), $"{path} の範囲外です。"); }
+        if (offset < 0 || offset + length > len) { h.Dispose(); throw new ArgumentOutOfRangeException(nameof(offset), T("{0} の範囲外です。", path)); }
         return new HandleSource(path, h, offset, length, ss, true);
     }
 
@@ -94,7 +94,7 @@ public sealed class HandleSource : IVolumeSource
         while (got < dest.Length)
         {
             int n = RandomAccess.Read(_h, dest[got..], _base + offset + got);
-            if (n <= 0) throw new EndOfStreamException($"{Name}: 予期しない終端（{offset + got}）。");
+            if (n <= 0) throw new EndOfStreamException(T("{0}: 予期しない終端（{1}）。", Name, offset + got));
             got += n;
         }
     }

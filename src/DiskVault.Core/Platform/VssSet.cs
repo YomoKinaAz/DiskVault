@@ -33,15 +33,15 @@ public sealed class VssSet : IDisposable
     public static VssSet Create(IReadOnlyList<string> volumes, bool fullBackup, Action<string>? log = null)
     {
         log ??= _ => { };
-        if (!Native.IsAdmin()) throw new UnauthorizedAccessException("スナップショットの作成には管理者権限が必要です。管理者として実行してください。");
-        Check(CreateVssBackupComponentsInternal(out var c), "VSS の初期化");
+        if (!Native.IsAdmin()) throw new UnauthorizedAccessException(T("スナップショットの作成には管理者権限が必要です。管理者として実行してください。"));
+        Check(CreateVssBackupComponentsInternal(out var c), T("VSS の初期化"));
         var set = new VssSet(c, Guid.Empty);
         try
         {
             Check(c.InitializeForBackup(null), "InitializeForBackup");
             Check(c.SetContext(0 /* VSS_CTX_BACKUP */), "SetContext");
             Check(c.SetBackupState(false, true, fullBackup ? 1 /* VSS_BT_FULL */ : 5 /* VSS_BT_COPY */, false), "SetBackupState");
-            log("VSS ライターの情報を集めています…");
+            log(T("VSS ライターの情報を集めています…"));
             Run(c.GatherWriterMetadata(out var a1), a1, "GatherWriterMetadata");
             Check(c.StartSnapshotSet(out var setId), "StartSnapshotSet");
             set._setId = setId;
@@ -51,10 +51,10 @@ public sealed class VssSet : IDisposable
                 Check(c.AddToSnapshotSet(v, Guid.Empty, out var sid), $"AddToSnapshotSet {v}");
                 snapIds.Add((v, sid));
             }
-            log("ライターにバックアップの準備をさせています…");
+            log(T("ライターにバックアップの準備をさせています…"));
             Run(c.PrepareForBackup(out var a2), a2, "PrepareForBackup");
             set.CollectWriterStatus();
-            log($"スナップショットを作成しています（{snapIds.Count} ボリューム同時）…");
+            log(T("スナップショットを作成しています（{0} ボリューム同時）…", snapIds.Count));
             Run(c.DoSnapshotSet(out var a3), a3, "DoSnapshotSet");
             set.CollectWriterStatus();
             foreach (var (vol, sid) in snapIds)
@@ -63,8 +63,8 @@ public sealed class VssSet : IDisposable
                 try { set._devices[vol] = Marshal.PtrToStringUni(prop.SnapshotDeviceObject)!; }
                 finally { VssFreeSnapshotPropertiesInternal(ref prop); }
             }
-            var ok = set.Writers.Count(w => w.Error == 0 && w.State is "安定" or "完了待ち");
-            log($"VSS ライター: {set.Writers.Count} 個（正常 {ok}）{(set.Warnings.Count > 0 ? "、問題あり " + set.Warnings.Count : "")}");
+            var ok = set.Writers.Count(w => w.Error == 0 && (w.State == StateText(1) || w.State == StateText(5)));
+            log(T("VSS ライター: {0} 個（正常 {1}）{2}", set.Writers.Count, ok, set.Warnings.Count > 0 ? T("、問題あり {0}", set.Warnings.Count) : ""));
             return set;
         }
         catch
@@ -86,19 +86,23 @@ public sealed class VssSet : IDisposable
             Writers.Add((name ?? "?", st, failure));
             if (failure != 0 || state is 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15)
             {
-                var msg = $"VSS ライター「{name}」が失敗しました（{st}、0x{failure:X8}）。このアプリのデータはクラッシュ整合になります。";
+                var msg = T("VSS ライター「{0}」が失敗しました（{1}、0x{2:X8}）。このアプリのデータはクラッシュ整合になります。", name, st, failure);
                 if (!Warnings.Contains(msg)) Warnings.Add(msg);
             }
         }
         _c.FreeWriterStatus();
     }
 
+    /// <summary>Writers の State（表示用の文字列）が失敗状態か。</summary>
+    public static bool IsFailedState(string state) => FailedStates.Any(s => StateText(s) == state);
+    static readonly int[] FailedStates = [7, 8, 9, 10, 11, 12, 13, 14, 15];
+
     static string StateText(int s) => s switch
     {
-        1 => "安定", 2 => "フリーズ待ち", 3 => "書き込み抑止待ち", 4 => "書き込み再開待ち", 5 => "完了待ち",
-        6 => "完了待ち", 7 => "フリーズ前に失敗", 8 => "フリーズ時に失敗", 9 => "書き込み抑止時に失敗", 10 => "再開時に失敗",
-        11 => "完了処理で失敗", 12 => "失敗", 13 => "復元前に失敗", 14 => "復元後に失敗", 15 => "バックアップ終了時に失敗",
-        _ => $"状態 {s}",
+        1 => T("安定"), 2 => T("フリーズ待ち"), 3 => T("書き込み抑止待ち"), 4 => T("書き込み再開待ち"), 5 => T("完了待ち"),
+        6 => T("完了待ち"), 7 => T("フリーズ前に失敗"), 8 => T("フリーズ時に失敗"), 9 => T("書き込み抑止時に失敗"), 10 => T("再開時に失敗"),
+        11 => T("完了処理で失敗"), 12 => T("失敗"), 13 => T("復元前に失敗"), 14 => T("復元後に失敗"), 15 => T("バックアップ終了時に失敗"),
+        _ => T("状態 {0}", s),
     };
 
     /// <summary>バックアップが成功したことをライターに伝える（VSS 完全バックアップならここでログが切り捨てられる）。</summary>
@@ -127,7 +131,7 @@ public sealed class VssSet : IDisposable
 
     static void Check(int hr, string what)
     {
-        if (hr < 0) throw new IOException($"VSS（{what}）が失敗しました: {Describe(hr)}");
+        if (hr < 0) throw new IOException(T("VSS（{0}）が失敗しました: {1}", what, Describe(hr)));
     }
 
     /// <summary>非同期の VSS 処理を完了まで待つ。</summary>
@@ -146,17 +150,17 @@ public sealed class VssSet : IDisposable
 
     static string Describe(int hr) => (uint)hr switch
     {
-        0x80042302 => "VSS サービスでエラーが起きました",
-        0x80042308 => "指定したオブジェクトがありません",
-        0x8004230C => "このボリュームはスナップショットに対応していません",
-        0x8004230F => "スナップショット プロバイダーでエラーが起きました",
-        0x80042312 => "スナップショットの数が上限に達しています",
-        0x80042316 => "別のスナップショット処理が実行中です",
-        0x80042317 => "スナップショット数の上限です",
-        0x8004231F => "スナップショット用の領域が足りません",
-        0x80042318 => "ライターがタイムアウトしました",
-        0x8004230A => "ライターの状態が不正です",
-        0x80070005 => "アクセスが拒否されました",
+        0x80042302 => T("VSS サービスでエラーが起きました"),
+        0x80042308 => T("指定したオブジェクトがありません"),
+        0x8004230C => T("このボリュームはスナップショットに対応していません"),
+        0x8004230F => T("スナップショット プロバイダーでエラーが起きました"),
+        0x80042312 => T("スナップショットの数が上限に達しています"),
+        0x80042316 => T("別のスナップショット処理が実行中です"),
+        0x80042317 => T("スナップショット数の上限です"),
+        0x8004231F => T("スナップショット用の領域が足りません"),
+        0x80042318 => T("ライターがタイムアウトしました"),
+        0x8004230A => T("ライターの状態が不正です"),
+        0x80070005 => T("アクセスが拒否されました"),
         _ => $"0x{hr:X8}",
     };
 

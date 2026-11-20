@@ -62,7 +62,7 @@ internal static unsafe partial class Native
     public static partial bool GetVolumeNameForVolumeMountPoint(string mountPoint, char* name, int len);
 
     public static Exception Error(string what, int err) => err == ERROR_ACCESS_DENIED
-        ? new UnauthorizedAccessException($"{what} を開けません: アクセスが拒否されました（管理者として実行してください）。")
+        ? new UnauthorizedAccessException(T("{0} を開けません: アクセスが拒否されました（管理者として実行してください）。", what))
         : new IOException($"{what}: {new Win32Exception(err).Message} ({err})");
 
     public static long? GetLength(SafeFileHandle h)

@@ -23,7 +23,7 @@ public partial class MainWindow : Window
             bool show = App.Recovery ? tag is "restore" or "pebackup" or "tools" : tag is not ("tools" or "pebackup");
             i.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
         }
-        if (App.Recovery) Title = "DiskVault 回復環境";
+        if (App.Recovery) Title = T("DiskVault 回復環境");
         var start = App.StartPage ?? (App.Recovery ? "restore" : "dash");
         Nav.SelectedItem = Nav.Items.Cast<ListBoxItem>().FirstOrDefault(i => (string)i.Tag == start) ?? Nav.Items[0];
     }

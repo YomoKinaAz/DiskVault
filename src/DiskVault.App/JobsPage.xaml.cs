@@ -13,7 +13,7 @@ public partial class JobsPage : UserControl, IPage
     bool _isNew;
     readonly List<(CheckBox Box, string Spec)> _volBoxes = [];
     readonly CheckBox[] _days = new CheckBox[7];
-    static readonly string[] DayNames = ["日", "月", "火", "水", "木", "金", "土"];
+    static readonly string[] DayNames = ["日曜", "月曜", "火曜", "水曜", "木曜", "金曜", "土曜"];
     string? _encSet; // 既存の暗号化パスワード（変更しないとき用）
 
     public JobsPage()
@@ -21,11 +21,11 @@ public partial class JobsPage : UserControl, IPage
         InitializeComponent();
         foreach (var d in new[] { 1, 2, 3, 4, 5, 6, 0 })
         {
-            var cb = new CheckBox { Content = DayNames[d] + "曜" };
+            var cb = new CheckBox { Content = T(DayNames[d]) };
             _days[d] = cb;
             DaysPanel.Children.Add(cb);
         }
-        foreach (var d in new[] { 1, 2, 3, 4, 5, 6, 0 }) FullDay.Items.Add(new ComboBoxItem { Content = DayNames[d] + "曜", Tag = d });
+        foreach (var d in new[] { 1, 2, 3, 4, 5, 6, 0 }) FullDay.Items.Add(new ComboBoxItem { Content = T(DayNames[d]), Tag = d });
         LoadVolumes();
     }
 
@@ -48,16 +48,16 @@ public partial class JobsPage : UserControl, IPage
             var sys = vols.FirstOrDefault(v => v.IsSystem);
             if (sys?.Disk is int dn)
             {
-                var others = vols.Where(v => v.Disk == dn && !v.IsSystem).Select(v => v.FileSystem == "FAT32" ? $"EFI（{Fmt.Size(v.Size)}）" : $"{v.Letter ?? (string.IsNullOrEmpty(v.Label) ? "回復" : v.Label)}（{Fmt.Size(v.Size)}）");
-                SystemDetail.Text = $"ディスク {dn}: {sys.Letter} {Fmt.Size(sys.Size)}" + (others.Any() ? " ＋ " + string.Join("、", others) : "");
+                var others = vols.Where(v => v.Disk == dn && !v.IsSystem).Select(v => v.FileSystem == "FAT32" ? T("EFI（{0}）", Fmt.Size(v.Size)) : T("{0}（{1}）", v.Letter ?? (string.IsNullOrEmpty(v.Label) ? T("回復") : v.Label), Fmt.Size(v.Size)));
+                SystemDetail.Text = T("ディスク {0}: {1} {2}", dn, sys.Letter, Fmt.Size(sys.Size)) + (others.Any() ? T(" ＋ ") + string.Join(T("、"), others) : "");
             }
             foreach (var v in vols.Where(v => v.Letter != null && !v.IsSystem && v.FileSystem is "NTFS" or "ReFS" or "FAT32" or "exFAT"))
             {
-                var cb = new CheckBox { Content = $"{v.Letter}  {v.Label}  {v.FileSystem}  {Fmt.Size(v.Size)}（空き {Fmt.Size(v.Free)}）" };
+                var cb = new CheckBox { Content = $"{v.Letter}  {v.Label}  {v.FileSystem}  {Fmt.Size(v.Size)}" + T("（空き {0}）", Fmt.Size(v.Free)) };
                 _volBoxes.Add((cb, v.Letter!));
                 VolumeBoxes.Children.Add(cb);
             }
-            if (_volBoxes.Count == 0) VolumeBoxes.Children.Add(new TextBlock { Text = "（なし）", Foreground = System.Windows.Media.Brushes.Gray });
+            if (_volBoxes.Count == 0) VolumeBoxes.Children.Add(new TextBlock { Text = T("（なし）"), Foreground = System.Windows.Media.Brushes.Gray });
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
@@ -69,7 +69,7 @@ public partial class JobsPage : UserControl, IPage
     {
         _cfg = AppConfig.Load();
         _isNew = true;
-        _job = new JobConfig { Name = _cfg.Jobs.Count == 0 ? "システム" : $"ジョブ {_cfg.Jobs.Count + 1}" };
+        _job = new JobConfig { Name = _cfg.Jobs.Count == 0 ? T("システム") : T("ジョブ {0}", _cfg.Jobs.Count + 1) };
         JobList.SelectedItem = null;
         Show(_job);
         NameBox.Focus();
@@ -124,7 +124,7 @@ public partial class JobsPage : UserControl, IPage
         EncryptBox.IsChecked = j.EncryptionPasswordEnc != null;
         EncPass1.Password = EncPass2.Password = _encSet != null ? "********" : "";
         DeleteButton.IsEnabled = !_isNew;
-        SaveStatus.Text = _isNew ? "新しいジョブ（まだ保存していません）" : "";
+        SaveStatus.Text = _isNew ? T("新しいジョブ（まだ保存していません）") : "";
         UpdateVisibility();
     }
 
@@ -149,7 +149,7 @@ public partial class JobsPage : UserControl, IPage
     static string NormTime(string s)
     {
         if (!TimeSpan.TryParseExact(s.Trim(), [@"h\:mm", @"hh\:mm", "%h"], CultureInfo.InvariantCulture, out var t) || t >= TimeSpan.FromDays(1))
-            throw new FormatException($"時刻「{s}」は HH:mm で入力してください。");
+            throw new FormatException(T("時刻「{0}」は HH:mm で入力してください。", s));
         return $"{t.Hours:00}:{t.Minutes:00}";
     }
 
@@ -158,20 +158,20 @@ public partial class JobsPage : UserControl, IPage
     {
         var j = _job ?? new JobConfig();
         var name = NameBox.Text.Trim();
-        if (name.Length == 0) throw new FormatException("ジョブ名を入力してください。");
-        if (_cfg.Jobs.Any(o => o.Id != j.Id && o.Name == name)) throw new FormatException("同じ名前のジョブがあります。");
+        if (name.Length == 0) throw new FormatException(T("ジョブ名を入力してください。"));
+        if (_cfg.Jobs.Any(o => o.Id != j.Id && o.Name == name)) throw new FormatException(T("同じ名前のジョブがあります。"));
         var sources = new List<string>();
         if (SystemBox.IsChecked == true) sources.Add("system");
         sources.AddRange(_volBoxes.Where(v => v.Box.IsChecked == true).Select(v => v.Spec));
-        if (sources.Count == 0) throw new FormatException("バックアップする範囲を選んでください。");
+        if (sources.Count == 0) throw new FormatException(T("バックアップする範囲を選んでください。"));
         var dest = DestBox.Text.Trim().TrimEnd('\\');
-        if (dest.Length < 3) throw new FormatException("保存先を入力してください。");
+        if (dest.Length < 3) throw new FormatException(T("保存先を入力してください。"));
         if (sources.Contains("system") || sources.Any(s => dest.StartsWith(s, StringComparison.OrdinalIgnoreCase)))
         {
             var sysDrive = Environment.GetEnvironmentVariable("SystemDrive") ?? "C:";
             if ((sources.Contains("system") && dest.StartsWith(sysDrive, StringComparison.OrdinalIgnoreCase))
                 || sources.Any(s => s.Length == 2 && dest.StartsWith(s, StringComparison.OrdinalIgnoreCase)))
-                throw new FormatException("バックアップするドライブの中には保存できません。別のディスクか NAS を指定してください。");
+                throw new FormatException(T("バックアップするドライブの中には保存できません。別のディスクか NAS を指定してください。"));
         }
         var s = new ScheduleConfig
         {
@@ -179,23 +179,23 @@ public partial class JobsPage : UserControl, IPage
             Incremental = TagOf(IncMode),
             Times = TimesBox.Text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(NormTime).Distinct().Order().ToList(),
             HourlyStart = NormTime(StartBox.Text),
-            IntervalHours = int.TryParse(IntervalBox.Text, out var ih) && ih is >= 1 and <= 24 ? ih : throw new FormatException("間隔は 1〜24 時間にしてください。"),
+            IntervalHours = int.TryParse(IntervalBox.Text, out var ih) && ih is >= 1 and <= 24 ? ih : throw new FormatException(T("間隔は 1〜24 時間にしてください。")),
             Days = Enumerable.Range(0, 7).Where(d => _days[d].IsChecked == true).Select(d => (DayOfWeek)d).ToList(),
             Full = TagOf(FullMode),
             FullDay = (DayOfWeek)(int)((ComboBoxItem)FullDay.SelectedItem).Tag,
-            FullDayOfMonth = int.TryParse(FullDom.Text, out var dom) && dom is >= 1 and <= 31 ? dom : throw new FormatException("フルの日付は 1〜31 にしてください。"),
+            FullDayOfMonth = int.TryParse(FullDom.Text, out var dom) && dom is >= 1 and <= 31 ? dom : throw new FormatException(T("フルの日付は 1〜31 にしてください。")),
             FullTime = NormTime(FullTimeBox.Text),
             RunMissed = MissedBox.IsChecked == true,
         };
-        if (s.Incremental == "daily" && (s.Times.Count == 0 || s.Days.Count == 0)) throw new FormatException("増分の時刻と曜日を指定してください。");
+        if (s.Incremental == "daily" && (s.Times.Count == 0 || s.Days.Count == 0)) throw new FormatException(T("増分の時刻と曜日を指定してください。"));
         string? enc = null;
         if (EncryptBox.IsChecked == true)
         {
             if (_encSet != null && EncPass1.Password == "********" && EncPass2.Password == "********") enc = _encSet;
             else
             {
-                if (EncPass1.Password.Length < 8) throw new FormatException("暗号化パスワードは 8 文字以上にしてください。");
-                if (EncPass1.Password != EncPass2.Password) throw new FormatException("暗号化パスワードが一致しません。");
+                if (EncPass1.Password.Length < 8) throw new FormatException(T("暗号化パスワードは 8 文字以上にしてください。"));
+                if (EncPass1.Password != EncPass2.Password) throw new FormatException(T("暗号化パスワードが一致しません。"));
                 enc = Secret.Protect(EncPass1.Password);
             }
         }
@@ -211,7 +211,7 @@ public partial class JobsPage : UserControl, IPage
         if (string.IsNullOrEmpty(j.RepoFolder)) j.RepoFolder = JobConfig.SafeFolder(name);
         j.EncryptionPasswordEnc = enc;
         j.Schedule = s;
-        j.Keep = int.TryParse(KeepBox.Text, out var k) && k is >= 1 and <= 1000 ? k : throw new FormatException("残す数は 1〜1000 にしてください。");
+        j.Keep = int.TryParse(KeepBox.Text, out var k) && k is >= 1 and <= 1000 ? k : throw new FormatException(T("残す数は 1〜1000 にしてください。"));
         j.VerifyAfterBackup = VerifyBox.IsChecked == true;
         j.ExcludeSystemFiles = ExcludeBox.IsChecked == true;
         j.VssWriters = WritersBox.IsChecked == true;
@@ -227,7 +227,7 @@ public partial class JobsPage : UserControl, IPage
         try { j = Collect(); }
         catch (FormatException ex)
         {
-            MessageBox.Show(ex.Message, "入力の確認", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(ex.Message, T("入力の確認"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
         var cfg = AppConfig.Load();
@@ -237,9 +237,8 @@ public partial class JobsPage : UserControl, IPage
             var old = cfg.Jobs[idx];
             if (old.EncryptionPasswordEnc != j.EncryptionPasswordEnc && Storage.Repository.Exists(old.RepoPath))
             {
-                var ans = MessageBox.Show("既にバックアップがある保存先の暗号化設定（パスワード）は変えられません。\n" +
-                    "新しい設定は、保存先フォルダを変えるか古いバックアップを消したときから有効になります。\nこのまま保存しますか？",
-                    "暗号化", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                var ans = MessageBox.Show(T("既にバックアップがある保存先の暗号化設定（パスワード）は変えられません。\n新しい設定は、保存先フォルダを変えるか古いバックアップを消したときから有効になります。\nこのまま保存しますか？"),
+                    T("暗号化"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
                 if (ans != MessageBoxResult.Yes) return;
             }
             cfg.Jobs[idx] = j;
@@ -248,7 +247,7 @@ public partial class JobsPage : UserControl, IPage
         try { cfg.Save(); }
         catch (UnauthorizedAccessException)
         {
-            MessageBox.Show("設定を保存できません。管理者として実行してください。", "保存", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(T("設定を保存できません。管理者として実行してください。"), T("保存"), MessageBoxButton.OK, MessageBoxImage.Warning);
             return;
         }
         ServiceCtl.Reload();
@@ -258,7 +257,7 @@ public partial class JobsPage : UserControl, IPage
         JobList.ItemsSource = null;
         JobList.ItemsSource = _cfg.Jobs;
         JobList.SelectedItem = _cfg.Jobs.First(o => o.Id == j.Id);
-        SaveStatus.Text = $"保存しました（{DateTime.Now:HH:mm:ss}）";
+        SaveStatus.Text = T("保存しました（{0:HH:mm:ss}）", DateTime.Now);
     }
 
     void Revert_Click(object sender, RoutedEventArgs e)
@@ -274,7 +273,7 @@ public partial class JobsPage : UserControl, IPage
     void Delete_Click(object sender, RoutedEventArgs e)
     {
         if (_job == null || _isNew) return;
-        if (MessageBox.Show($"ジョブ「{_job.Name}」を削除しますか？\n保存先のバックアップ（{_job.RepoPath}）は消しません。", "削除",
+        if (MessageBox.Show(T("ジョブ「{0}」を削除しますか？\n保存先のバックアップ（{1}）は消しません。", _job.Name, _job.RepoPath), T("削除"),
                 MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         var cfg = AppConfig.Load();
         cfg.Jobs.RemoveAll(o => o.Id == _job.Id);
@@ -286,7 +285,7 @@ public partial class JobsPage : UserControl, IPage
 
     void Browse_Click(object sender, RoutedEventArgs e)
     {
-        if (Dialogs.PickFolder(Window.GetWindow(this), "保存先フォルダ", DestBox.Text) is { } p) DestBox.Text = p;
+        if (Dialogs.PickFolder(Window.GetWindow(this), T("保存先フォルダ"), DestBox.Text) is { } p) DestBox.Text = p;
     }
 
     async void TestDest_Click(object sender, RoutedEventArgs e)
@@ -298,7 +297,7 @@ public partial class JobsPage : UserControl, IPage
             PasswordEnc = Secret.Protect(PassBox.Password),
         };
         var msg = await Task.Run(() => TestDestination(dest));
-        MessageBox.Show(msg, "接続テスト", MessageBoxButton.OK, msg.StartsWith("OK") ? MessageBoxImage.Information : MessageBoxImage.Warning);
+        MessageBox.Show(msg, T("接続テスト"), MessageBoxButton.OK, msg.StartsWith("OK") ? MessageBoxImage.Information : MessageBoxImage.Warning);
     }
 
     internal static string TestDestination(DestinationConfig dest)
@@ -315,15 +314,15 @@ public partial class JobsPage : UserControl, IPage
             try
             {
                 var di = new DriveInfo(root!);
-                free = $"（空き {Fmt.Size(di.AvailableFreeSpace)}）";
+                free = T("（空き {0}）", Fmt.Size(di.AvailableFreeSpace));
             }
             catch (ArgumentException) { }
             catch (IOException) { }
-            return $"OK: 書き込みできました。{free}";
+            return T("OK: 書き込みできました。") + free;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
         {
-            return $"接続できません: {ex.Message}";
+            return T("接続できません: {0}", ex.Message);
         }
     }
 }

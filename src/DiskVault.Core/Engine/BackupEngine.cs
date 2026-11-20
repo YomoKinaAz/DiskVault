@@ -29,6 +29,8 @@ public sealed class BackupOptions
     public string? Machine { get; set; }
     /// <summary>"writers" / "crash" / "offline"（回復環境で停止中のディスクを直接読んだ） / ""</summary>
     public string Consistency { get; set; } = "";
+    /// <summary>既存のシャドウコピーから読んだとき、その作成時刻。</summary>
+    public DateTime? SourceTime { get; set; }
 }
 
 public sealed record BackupProgress(string Phase, int Volume, int VolumeCount, long Done, long Total, long NewBytes, double BytesPerSecond);
@@ -52,7 +54,7 @@ public static class BackupEngine
         else
         {
             if (kind == PointKind.Incremental)
-                log(last == null ? "最初のバックアップなのでフルバックアップを行います。" : "前回とボリューム構成が異なるためフルバックアップを行います。");
+                log(last == null ? T("最初のバックアップなのでフルバックアップを行います。") : T("前回とボリューム構成が異なるためフルバックアップを行います。"));
             kind = PointKind.Full;
             chain = DateTime.UtcNow.ToString("yyyyMMddHHmmss") + "-" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(3));
         }
@@ -72,9 +74,10 @@ public static class BackupEngine
             Comment = o.Comment,
             Disks = o.Disks,
             Consistency = o.Consistency.Length > 0 ? o.Consistency : null,
+            SourceTime = o.SourceTime,
         };
         point.Warnings.AddRange(o.Warnings);
-        log($"{(kind == PointKind.Full ? "フル" : "増分")}バックアップ開始: 復元ポイント {id}（チェーン {chain}）");
+        log(T("{0}バックアップ開始: 復元ポイント {1}（チェーン {2}）", kind == PointKind.Full ? T("フル") : T("増分"), id, chain));
         Directory.CreateDirectory(repo.PointDir(id));
         try
         {
@@ -90,12 +93,12 @@ public static class BackupEngine
                 rec.Size = src.Length;
                 rec.FileSystem ??= used.FileSystem;
                 rec.BlockSize = repo.Config.BlockSize;
-                foreach (var ex in used.Excluded) log($"  除外: {rec.Display.Trim()} {ex}");
-                log($"ボリューム {vi + 1}/{volumes.Count}: {rec.Display.Trim()} {Fmt.Size(src.Length)}（使用中 {Fmt.Size(used.UsedBytes)}）");
+                foreach (var ex in used.Excluded) log(T("  除外: {0} {1}", rec.Display.Trim(), ex));
+                log(T("ボリューム {0}/{1}: {2} {3}（使用中 {4}）", vi + 1, volumes.Count, rec.Display.Trim(), Fmt.Size(src.Length), Fmt.Size(used.UsedBytes)));
                 var map = BackupVolume(store, repo.Codec, src, used, rec, point.Stats, o, vi, volumes.Count, progress, sw, ct);
                 map.Save(repo.MapPath(id, vi));
                 if (rec.UnreadableBytes > 0)
-                    point.Warnings.Add($"{rec.Display.Trim()}: 読めないセクタが {Fmt.Size(rec.UnreadableBytes)} あり、ゼロで保存しました。");
+                    point.Warnings.Add(T("{0}: 読めないセクタが {1} あり、ゼロで保存しました。", rec.Display.Trim(), Fmt.Size(rec.UnreadableBytes)));
                 point.Volumes.Add(rec);
             }
             store.Flush();
@@ -112,7 +115,7 @@ public static class BackupEngine
         {
             repo.Unlock();
         }
-        log($"完了: 読み取り {Fmt.Size(point.Stats.ReadBytes)}、新規データ {Fmt.Size(point.Stats.NewBytes)}（保存 {Fmt.Size(point.Stats.StoredBytes)}）、{Fmt.Duration(sw.Elapsed)}");
+        log(T("完了: 読み取り {0}、新規データ {1}（保存 {2}）、{3}", Fmt.Size(point.Stats.ReadBytes), Fmt.Size(point.Stats.NewBytes), Fmt.Size(point.Stats.StoredBytes), Fmt.Duration(sw.Elapsed)));
         return point;
     }
 
@@ -230,7 +233,7 @@ public static class BackupEngine
             {
                 lastReport.Restart();
                 double rate = done / Math.Max(0.001, volSw.Elapsed.TotalSeconds);
-                progress.Report(new BackupProgress("バックアップ中", vi, vcount, done, total, stats.NewBytes, rate));
+                progress.Report(new BackupProgress(T("バックアップ中"), vi, vcount, done, total, stats.NewBytes, rate));
             }
         }
         return map;

@@ -70,31 +70,31 @@ public sealed class BlockCodec
         byte[]? plain = null;
         if ((codec & EncryptedFlag) != 0)
         {
-            if (_encKey == null) throw new InvalidDataException("暗号化されたブロックですが、パスワードが指定されていません。");
-            if (payload.Length < 28) throw new InvalidDataException("暗号化ブロックが短すぎます。");
+            if (_encKey == null) throw new InvalidDataException(T("暗号化されたブロックですが、パスワードが指定されていません。"));
+            if (payload.Length < 28) throw new InvalidDataException(T("暗号化ブロックが短すぎます。"));
             plain = new byte[payload.Length - 28];
             using var gcm = new AesGcm(_encKey, 16);
             Span<byte> aad = stackalloc byte[32];
             id.Write(aad);
             try { gcm.Decrypt(payload[..12], payload.Slice(12, plain.Length), payload[^16..], plain, aad); }
-            catch (CryptographicException) { throw new InvalidDataException($"ブロック {id} の復号に失敗しました（データ破損またはパスワード違い）。"); }
+            catch (CryptographicException) { throw new InvalidDataException(T("ブロック {0} の復号に失敗しました（データ破損またはパスワード違い）。", id)); }
             body = plain;
         }
         switch (codec & 0x7F)
         {
             case Raw:
-                if (body.Length != dest.Length) throw new InvalidDataException($"ブロック {id} のサイズが不正です。");
+                if (body.Length != dest.Length) throw new InvalidDataException(T("ブロック {0} のサイズが不正です。", id));
                 body.CopyTo(dest);
                 break;
             case Zstd:
                 int n;
                 try { n = _decomp.Value!.Unwrap(body, dest); }
-                catch (ZstdException e) { throw new InvalidDataException($"ブロック {id} の伸張に失敗しました: {e.Message}"); }
-                if (n != dest.Length) throw new InvalidDataException($"ブロック {id} の伸張後サイズが不正です。");
+                catch (ZstdException e) { throw new InvalidDataException(T("ブロック {0} の伸張に失敗しました: {1}", id, e.Message)); }
+                if (n != dest.Length) throw new InvalidDataException(T("ブロック {0} の伸張後サイズが不正です。", id));
                 break;
             default:
-                throw new InvalidDataException($"未知の圧縮方式 {codec}。");
+                throw new InvalidDataException(T("未知の圧縮方式 {0}。", codec));
         }
-        if (ComputeId(dest) != id) throw new InvalidDataException($"ブロック {id} の内容がハッシュと一致しません（データ破損）。");
+        if (ComputeId(dest) != id) throw new InvalidDataException(T("ブロック {0} の内容がハッシュと一致しません（データ破損）。", id));
     }
 }

@@ -1,20 +1,21 @@
 <UserControl x:Class="DiskVault.App.ToolsPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DiskVault.App">
     <DockPanel>
-        <TextBlock DockPanel.Dock="Top" Text="回復環境のツール" Style="{StaticResource H1}"/>
+        <TextBlock DockPanel.Dock="Top" Text="{local:Tr '回復環境のツール'}" Style="{StaticResource H1}"/>
         <Border DockPanel.Dock="Top" Style="{StaticResource Card}">
             <StackPanel>
                 <WrapPanel>
-                    <Button Content="ネットワークの状態" Click="Ip_Click" Margin="0,0,8,8"/>
-                    <Button Content="ドライバを読み込む…" Click="Driver_Click" Margin="0,0,8,8"/>
-                    <Button Content="コマンドプロンプト" Click="Cmd_Click" Margin="0,0,8,8"/>
-                    <Button Content="メモ帳" Click="Notepad_Click" Margin="0,0,8,8"/>
-                    <Button Content="再起動" Click="Reboot_Click" Margin="0,0,8,8"/>
-                    <Button Content="電源を切る" Click="Shutdown_Click" Margin="0,0,8,8"/>
+                    <Button Content="{local:Tr 'ネットワークの状態'}" Click="Ip_Click" Margin="0,0,8,8"/>
+                    <Button Content="{local:Tr 'ドライバを読み込む…'}" Click="Driver_Click" Margin="0,0,8,8"/>
+                    <Button Content="{local:Tr 'コマンドプロンプト'}" Click="Cmd_Click" Margin="0,0,8,8"/>
+                    <Button Content="{local:Tr 'メモ帳'}" Click="Notepad_Click" Margin="0,0,8,8"/>
+                    <Button Content="{local:Tr '再起動'}" Click="Reboot_Click" Margin="0,0,8,8"/>
+                    <Button Content="{local:Tr '電源を切る'}" Click="Shutdown_Click" Margin="0,0,8,8"/>
                 </WrapPanel>
                 <TextBlock Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,6,0,0"
-                           Text="NAS が見えないときは「ネットワークの状態」で IP アドレスを確認してください。ネットワークやディスクが認識されないときは、そのドライバ（.inf）を USB メモリなどから読み込みます。"/>
+                           Text="{local:Tr 'NAS が見えないときは「ネットワークの状態」で IP アドレスを確認してください。ネットワークやディスクが認識されないときは、そのドライバ（.inf）を USB メモリなどから読み込みます。'}"/>
             </StackPanel>
         </Border>
         <TextBox x:Name="Output" IsReadOnly="True" FontFamily="Consolas, BIZ UDGothic, MS Gothic" FontSize="12" VerticalScrollBarVisibility="Auto" Background="White"/>

@@ -81,7 +81,7 @@ sealed class PathPickerWindow : Window
         _path.Text = initial ?? "";
 
         var ok = new Button { Content = "OK", IsDefault = true, MinWidth = 80, Margin = new Thickness(0, 0, 8, 0) };
-        var cancel = new Button { Content = "キャンセル", IsCancel = true, MinWidth = 80 };
+        var cancel = new Button { Content = T("キャンセル"), IsCancel = true, MinWidth = 80 };
         ok.Click += (_, _) => Accept();
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
         buttons.Children.Add(ok);
@@ -99,7 +99,7 @@ sealed class PathPickerWindow : Window
         var root = new DockPanel { Margin = new Thickness(14) };
         var label = new TextBlock
         {
-            Text = mode == PickMode.Folder ? "フォルダ（直接入力もできます）:" : "ファイル（直接入力もできます）:",
+            Text = mode == PickMode.Folder ? T("フォルダ（直接入力もできます）:") : T("ファイル（直接入力もできます）:"),
             Margin = new Thickness(0, 0, 0, 4),
         };
         DockPanel.SetDock(label, Dock.Top);
@@ -178,7 +178,7 @@ sealed class PathPickerWindow : Window
         };
         if (!ok)
         {
-            MessageBox.Show(this, $"{p} が見つかりません。", Title);
+            MessageBox.Show(this, T("{0} が見つかりません。", p), Title);
             return;
         }
         if (_mode == PickMode.SaveFile && _ext != null && !p.EndsWith(_ext, StringComparison.OrdinalIgnoreCase)) p += _ext;

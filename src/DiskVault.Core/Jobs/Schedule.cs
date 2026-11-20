@@ -61,20 +61,22 @@ public sealed class ScheduleConfig
 
     public string Describe()
     {
-        if (!Enabled) return "スケジュールなし（手動のみ）";
-        string[] dn = ["日", "月", "火", "水", "木", "金", "土"];
+        if (!Enabled) return Loc.T("スケジュールなし（手動のみ）");
+        string[] dn = IsEnglish ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["日", "月", "火", "水", "木", "金", "土"];
+        var days = string.Join(IsEnglish ? "/" : "", Days.OrderBy(d => ((int)d + 6) % 7).Select(d => dn[(int)d]));
         var inc = Incremental switch
         {
-            "daily" => (Days.Count == 7 ? "毎日" : "毎週 " + string.Concat(Days.OrderBy(d => ((int)d + 6) % 7).Select(d => dn[(int)d]))) + " " + string.Join(", ", Times),
-            "hourly" => $"{HourlyStart} から {IntervalHours} 時間ごと",
-            _ => "なし",
+            "daily" => (Days.Count == 7 ? Loc.T("毎日") : Loc.T("毎週 {0}", days)) + " " + string.Join(", ", Times),
+            "hourly" => Loc.T("{0} から {1} 時間ごと", HourlyStart, IntervalHours),
+            _ => Loc.T("なし"),
         };
         var full = Full switch
         {
-            "weekly" => $"毎週{dn[(int)FullDay]}曜 {FullTime}",
-            "monthly" => $"毎月 {FullDayOfMonth} 日 {FullTime}",
-            _ => "なし（最初の 1 回だけ）",
+            // 英語は曜日を省略せずに書く（DayOfWeek の名前 = Sunday など）
+            "weekly" => Loc.T("毎週{0}曜 {1}", IsEnglish ? FullDay.ToString() : dn[(int)FullDay], FullTime),
+            "monthly" => Loc.T("毎月 {0} 日 {1}", FullDayOfMonth, FullTime),
+            _ => Loc.T("なし（最初の 1 回だけ）"),
         };
-        return $"増分: {inc} ／ フル: {full}";
+        return Loc.T("増分: {0} ／ フル: {1}", inc, full);
     }
 }

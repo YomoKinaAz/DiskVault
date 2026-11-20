@@ -1,0 +1,18 @@
+{
+  "DiskVault イメージバックアップ": "DiskVault Image Backup",
+  "DiskVault サービス {0} をコンソールで実行中（パイプ {1}、データ {2}）。Ctrl+C で終了。": "DiskVault service {0} running in the console (pipe {1}, data {2}). Press Ctrl+C to exit.",
+  "DiskVault サービス: {0}": "DiskVault service: {0}",
+  "Microsoft Store 版では、アプリをアンインストールするとサービスも削除されます。": "In the Microsoft Store version, the service is removed when you uninstall the app.",
+  "Microsoft Store 版では、サービスはアプリと一緒に自動で登録されます。": "In the Microsoft Store version, the service is installed automatically with the app.",
+  "service.log を開けませんでした（続行します）": "Could not open service.log (continuing)",
+  "サービスが異常終了しました": "The service terminated unexpectedly",
+  "サービスを登録して開始しました。": "The service was installed and started.",
+  "サービスを登録しましたが開始できませんでした（{0}）。": "The service was installed but could not be started ({0}).",
+  "サービスを開始できませんでした": "Could not start the service",
+  "サービス停止": "Service stopped",
+  "サービス開始 {0}": "Service started {0}",
+  "ディスクイメージのバックアップをスケジュール実行します。": "Runs scheduled disk image backups.",
+  "データフォルダのアクセス権を設定できませんでした（続行します）": "Could not set permissions on the data folder (continuing)",
+  "不明な引数です: {0}（--console / install / uninstall）": "Unknown argument: {0} (--console / install / uninstall)",
+  "開始に失敗: {0}": "Start failed: {0}"
+}

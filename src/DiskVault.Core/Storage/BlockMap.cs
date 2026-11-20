@@ -75,24 +75,24 @@ public sealed class BlockMap
         var bs = new BufferedStream(z, 1 << 16);
         Span<byte> h = stackalloc byte[32];
         bs.ReadExactly(h);
-        if (BinaryPrimitives.ReadUInt32LittleEndian(h) != Magic) throw new InvalidDataException($"{path} はブロックマップではありません。");
+        if (BinaryPrimitives.ReadUInt32LittleEndian(h) != Magic) throw new InvalidDataException(T("{0} はブロックマップではありません。", path));
         int blockSize = BinaryPrimitives.ReadInt32LittleEndian(h[8..]);
         long volSize = BinaryPrimitives.ReadInt64LittleEndian(h[12..]);
         long count = BinaryPrimitives.ReadInt64LittleEndian(h[20..]);
         var m = new BlockMap(blockSize, volSize);
-        if (m.Count != count) throw new InvalidDataException($"{path} のブロック数が不正です。");
+        if (m.Count != count) throw new InvalidDataException(T("{0} のブロック数が不正です。", path));
         Span<byte> id = stackalloc byte[32];
         for (long i = 0; i < count; i++)
         {
             int k = bs.ReadByte();
-            if (k < 0) throw new EndOfStreamException($"{path} が途中で切れています。");
+            if (k < 0) throw new EndOfStreamException(T("{0} が途中で切れています。", path));
             m.Kinds[i] = (byte)k;
             if (k == Data)
             {
                 bs.ReadExactly(id);
                 m.Ids[i] = new BlockId(id);
             }
-            else if (k > Data) throw new InvalidDataException($"{path} に不正なエントリがあります。");
+            else if (k > Data) throw new InvalidDataException(T("{0} に不正なエントリがあります。", path));
         }
         return m;
     }

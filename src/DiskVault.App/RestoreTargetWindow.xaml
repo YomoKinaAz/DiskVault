@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:DiskVault.App"
-        Title="復元先の選択" Height="780" Width="860" MinWidth="600" MinHeight="420"
+        Title="{local:Tr '復元先の選択'}" Height="780" Width="860" MinWidth="600" MinHeight="420"
         FontFamily="Yu Gothic UI, Meiryo UI" FontSize="13" WindowStartupLocation="CenterOwner" Background="#F4F6F9">
     <DockPanel Margin="18">
         <TextBlock x:Name="Header" DockPanel.Dock="Top" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
@@ -14,40 +14,40 @@
             </StackPanel>
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                    <Button x:Name="StartButton" Content="復元を開始" Style="{StaticResource Primary}" Click="Start_Click"/>
-                    <Button x:Name="CloseButton" Content="閉じる" Click="Close_Click" Margin="0"/>
+                    <Button x:Name="StartButton" Content="{local:Tr '復元を開始'}" Style="{StaticResource Primary}" Click="Start_Click"/>
+                    <Button x:Name="CloseButton" Content="{local:Tr '閉じる'}" Click="Close_Click" Margin="0"/>
                 </StackPanel>
-                <CheckBox x:Name="BootFixBox" Content="復元後にブート構成を作り直す（bcdboot）" Visibility="Collapsed"/>
+                <CheckBox x:Name="BootFixBox" Content="{local:Tr '復元後にブート構成を作り直す（bcdboot）'}" Visibility="Collapsed"/>
             </DockPanel>
         </StackPanel>
         <DockPanel>
             <StackPanel x:Name="LayoutPanel" DockPanel.Dock="Bottom" Margin="0,12,0,0" Visibility="Collapsed">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <Button Content="自動（Windows を残り全体に）" Click="AutoLayout_Click" Margin="0,0,8,0"/>
-                        <Button Content="元のサイズ" Click="OrigLayout_Click" Margin="0"/>
+                        <Button Content="{local:Tr '自動（Windows を残り全体に）'}" Click="AutoLayout_Click" Margin="0,0,8,0"/>
+                        <Button Content="{local:Tr '元のサイズ'}" Click="OrigLayout_Click" Margin="0"/>
                     </StackPanel>
-                    <TextBlock Text="パーティションの配置（NTFS は広げる・縮めることができます）" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Text="{local:Tr 'パーティションの配置（NTFS は広げる・縮めることができます）'}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                 </DockPanel>
                 <local:PartitionBar x:Name="PartBar" Margin="0,8,0,0" SnapsToDevicePixels="True"/>
                 <DataGrid x:Name="LayoutGrid" Margin="0,4,0,0" IsReadOnly="False" MaxHeight="150" CellEditEnding="LayoutGrid_CellEditEnding">
                     <DataGrid.Columns>
                         <DataGridTextColumn Header="#" Binding="{Binding Number}" IsReadOnly="True" Width="30"/>
-                        <DataGridTextColumn Header="種類" Binding="{Binding Kind}" IsReadOnly="True" Width="*"/>
-                        <DataGridTextColumn Header="元のサイズ" Binding="{Binding OrigText}" IsReadOnly="True" Width="90"/>
-                        <DataGridTextColumn Header="最小" Binding="{Binding MinText}" IsReadOnly="True" Width="90"/>
-                        <DataGridTextColumn Header="前の空き (GB)" Binding="{Binding GapGB, UpdateSourceTrigger=LostFocus}" Width="95"/>
-                        <DataGridTextColumn Header="新しいサイズ (GB)" Binding="{Binding NewGB, UpdateSourceTrigger=LostFocus}" Width="120"/>
-                        <DataGridCheckBoxColumn Header="残り全体" Binding="{Binding Fill, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
+                        <DataGridTextColumn Header="{local:Tr '種類'}" Binding="{Binding Kind}" IsReadOnly="True" Width="*"/>
+                        <DataGridTextColumn Header="{local:Tr '元のサイズ'}" Binding="{Binding OrigText}" IsReadOnly="True" Width="90"/>
+                        <DataGridTextColumn Header="{local:Tr '最小'}" Binding="{Binding MinText}" IsReadOnly="True" Width="90"/>
+                        <DataGridTextColumn Header="{local:Tr '前の空き (GB)'}" Binding="{Binding GapGB, UpdateSourceTrigger=LostFocus}" Width="95"/>
+                        <DataGridTextColumn Header="{local:Tr '新しいサイズ (GB)'}" Binding="{Binding NewGB, UpdateSourceTrigger=LostFocus}" Width="120"/>
+                        <DataGridCheckBoxColumn Header="{local:Tr '残り全体'}" Binding="{Binding Fill, UpdateSourceTrigger=PropertyChanged}" Width="70"/>
                     </DataGrid.Columns>
                 </DataGrid>
                 <TextBlock x:Name="LayoutStatus" Margin="0,4,0,0" TextWrapping="Wrap"/>
             </StackPanel>
             <RadioButton x:Name="ImageRadio" DockPanel.Dock="Bottom" Margin="0,10,0,0" Checked="ImageRadio_Checked">
                 <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="イメージファイル (.img) に書き出す:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <TextBlock Text="{local:Tr 'イメージファイル (.img) に書き出す:'}" VerticalAlignment="Center" Margin="0,0,8,0"/>
                     <TextBox x:Name="ImagePath" Width="380"/>
-                    <Button Content="参照…" Click="BrowseImage_Click" Margin="8,0,0,0"/>
+                    <Button Content="{local:Tr '参照…'}" Click="BrowseImage_Click" Margin="8,0,0,0"/>
                 </StackPanel>
             </RadioButton>
             <ListBox x:Name="Targets" SelectionChanged="Targets_SelectionChanged" BorderBrush="{StaticResource Border}"/>

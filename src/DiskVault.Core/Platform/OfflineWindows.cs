@@ -6,6 +6,9 @@ namespace DiskVault.Platform;
 /// <summary>回復環境から見た、インストール済み（停止中）の Windows の情報。</summary>
 public static class OfflineWindows
 {
+    /// <summary>回復環境からのバックアップの既定のフォルダ名・ジョブ名（英語の画面では日本語フォントがない WinPE でも読めるように英語）。</summary>
+    public static string DefaultRepoName => Loc.IsEnglish ? "Recovery" : "回復環境";
+
     /// <summary>
     /// オフラインの SYSTEM ハイブを一時的に読み込んでコンピューター名を返す（失敗したら null）。
     /// 回復環境でのバックアップを、通常のジョブと同じ「保存先\PC 名\…」に置くために使う。

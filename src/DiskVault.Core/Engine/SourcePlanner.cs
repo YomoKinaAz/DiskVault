@@ -11,10 +11,15 @@ public sealed class SourcePlan : IDisposable
     public List<DiskRecord> Disks { get; } = [];
     /// <summary>スナップショット作成時の警告（失敗した VSS ライターなど）。復元ポイントに記録する。</summary>
     public List<string> Warnings { get; } = [];
-    /// <summary>"writers"（アプリ整合）/ "crash"（クラッシュ整合）/ ""（スナップショットなし）</summary>
+    /// <summary>"writers"（アプリ整合）/ "crash"（クラッシュ整合）/ "shadow"（既存のシャドウコピーだけから読んだ）/ "offline" / ""（スナップショットなし）</summary>
     public string Consistency { get; internal set; } = "";
     internal List<IDisposable> Resources { get; } = [];
     internal VssSet? Set { get; set; }
+    /// <summary>既存のシャドウコピーから読むボリューム（ボリューム GUID パス → シャドウコピー）。</summary>
+    internal Dictionary<string, ShadowCopyInfo> Shadow { get; } = new(StringComparer.OrdinalIgnoreCase);
+    /// <summary>既存のシャドウコピーから読んだとき、その作成時刻（いちばん古いもの）。</summary>
+    public DateTime? SourceTime => Shadow.Count > 0 ? Shadow.Values.Min(x => x.Created) : null;
+    internal HashSet<string> ShadowUsed { get; } = new(StringComparer.OrdinalIgnoreCase);
     /// <summary>VSS ライターの状態（ライター連携したときだけ）。</summary>
     public IReadOnlyList<(string Writer, string State, int Error)> Writers => Set?.Writers ?? [];
 
@@ -39,7 +44,10 @@ public static class SourcePlanner
     /// ライブのボリュームは VSS スナップショットを作ってから読む（NTFS/ReFS）。FAT（EFI システムパーティション）は直接読む。
     /// </summary>
     /// offline（既定は WinPE のとき true）: Windows が動いていないディスクなので、スナップショットを使わずボリュームを直接読む。
-    public static SourcePlan Build(IEnumerable<string> specs, Action<string>? log = null, bool useWriters = true, bool vssFullBackup = false, bool? offline = null)
+    /// shadows: 既存のシャドウコピーの ID。そのボリュームは新しいスナップショットを作らずにシャドウコピーから読む（ほかのボリュームはいつもどおり）。
+    /// 指定の "shadow:{ID}" は、そのシャドウコピーのボリューム 1 つだけをバックアップする。
+    public static SourcePlan Build(IEnumerable<string> specs, Action<string>? log = null, bool useWriters = true, bool vssFullBackup = false, bool? offline = null,
+        IEnumerable<string>? shadows = null)
     {
         log ??= _ => { };
         var plan = new SourcePlan();
@@ -49,27 +57,49 @@ public static class SourcePlanner
         List<VolumeInfo> Live() => live ??= VolumeInfo.Enumerate();
         try
         {
-            foreach (var raw in specs)
+            var specList = specs.Select(x => x.Trim()).ToList();
+            var shadowIds = (shadows ?? []).Concat(specList.Where(x => x.StartsWith("shadow:", StringComparison.OrdinalIgnoreCase)).Select(x => x[7..])).ToList();
+            if (shadowIds.Count > 0)
             {
-                var spec = raw.Trim();
+                if (off) throw new NotSupportedException(T("回復環境ではシャドウコピーからのバックアップはできません。"));
+                foreach (var id in shadowIds)
+                {
+                    var sc = ShadowCopies.Find(id);
+                    if (!plan.Shadow.TryAdd(sc.VolumeName, sc))
+                        throw new ArgumentException(T("同じボリューム（{0}）のシャドウコピーが 2 つ指定されています。", sc.VolumeText));
+                    log(T("シャドウコピーから読みます: {0}（{1:yyyy/MM/dd HH:mm}{2}）", sc.VolumeText, sc.Created,
+                        sc.RestorePoint is { Length: > 0 } rp ? T("、復元ポイント「{0}」", rp) : ""));
+                }
+            }
+            foreach (var spec in specList)
+            {
                 if (spec.Equals("system", StringComparison.OrdinalIgnoreCase))
                     AddSystemDisk(plan, Live(), off ? null : snapNeeded, log);
                 else if (spec.StartsWith("physical:", StringComparison.OrdinalIgnoreCase))
                     AddPhysicalDisk(plan, int.Parse(spec[9..]), Live(), off ? null : snapNeeded, log);
+                else if (spec.StartsWith("shadow:", StringComparison.OrdinalIgnoreCase))
+                {
+                    var sc = plan.Shadow.Values.First(x => string.Equals(x.Id.Trim('{', '}'), spec[7..].Trim().Trim('{', '}'), StringComparison.OrdinalIgnoreCase));
+                    var v = VolumeInfo.Find(sc.VolumeName) ?? throw new IOException(T("ボリューム {0} が見つかりません。", sc.VolumeName));
+                    AddLiveVolume(plan, v, snapNeeded, isSystem: v.IsSystem, isBoot: false);
+                }
                 else if (spec.StartsWith("disk:", StringComparison.OrdinalIgnoreCase))
                     AddDiskImage(plan, spec[5..]);
                 else if (IsLiveVolume(spec))
                 {
-                    var v = VolumeInfo.Find(spec) ?? throw new IOException($"ボリューム {spec} が見つかりません。");
+                    var v = VolumeInfo.Find(spec) ?? throw new IOException(T("ボリューム {0} が見つかりません。", spec));
                     AddLiveVolume(plan, v, off ? null : snapNeeded, isSystem: v.IsSystem, isBoot: false);
                 }
                 else AddImageFile(plan, spec);
             }
-            if (plan.Volumes.Count == 0) throw new ArgumentException("バックアップするボリュームがありません。");
+            if (plan.Volumes.Count == 0) throw new ArgumentException(T("バックアップするボリュームがありません。"));
+            foreach (var sc in plan.Shadow.Values.Where(x => !plan.ShadowUsed.Contains(x.VolumeName)))
+                throw new ArgumentException(T("シャドウコピーのボリューム {0} は、バックアップする範囲に入っていません。", sc.VolumeText));
+            if (plan.Shadow.Count > 0 && snapNeeded.Count == 0) plan.Consistency = "shadow";
             if (off)
             {
                 plan.Consistency = "offline";
-                log("回復環境（Windows 停止中）のため、スナップショットを使わずにボリュームを直接読みます。");
+                log(T("回復環境（Windows 停止中）のため、スナップショットを使わずにボリュームを直接読みます。"));
                 return plan;
             }
             if (snapNeeded.Count == 0) return plan;
@@ -92,14 +122,14 @@ public static class SourcePlanner
                 }
                 catch (IOException e)
                 {
-                    log($"VSS ライターと連携したスナップショットを作れませんでした（{e.Message}）。クラッシュ整合で続けます。");
-                    plan.Warnings.Add($"VSS ライター連携に失敗したため、クラッシュ整合でバックアップしました: {e.Message}");
+                    log(T("VSS ライターと連携したスナップショットを作れませんでした（{0}）。クラッシュ整合で続けます。", e.Message));
+                    plan.Warnings.Add(T("VSS ライター連携に失敗したため、クラッシュ整合でバックアップしました: {0}", e.Message));
                 }
             }
             plan.Consistency = "crash";
             foreach (var (rec, vol, set) in snapNeeded)
             {
-                log($"スナップショット作成: {rec.Display.Trim()}");
+                log(T("スナップショット作成: {0}", rec.Display.Trim()));
                 var snap = VssSnapshot.Create(vol);
                 plan.Resources.Add(snap);
                 var dev = snap.DeviceObject;
@@ -129,7 +159,7 @@ public static class SourcePlanner
             off = long.Parse(r[0]);
             if (r.Length > 1) len = long.Parse(r[1]);
         }
-        if (!File.Exists(path)) throw new FileNotFoundException($"{path} が見つかりません。");
+        if (!File.Exists(path)) throw new FileNotFoundException(T("{0} が見つかりません。", path));
         var full = Path.GetFullPath(path);
         plan.Volumes.Add(new VolumeInput
         {
@@ -179,7 +209,15 @@ public static class SourcePlanner
             IsBoot = isBoot,
         };
         var input = new Holder { Record = rec };
-        if (snaps != null && v.FileSystem is "NTFS" or "ReFS")
+        var key = v.GuidPath.EndsWith('\\') ? v.GuidPath : v.GuidPath + "\\";
+        if (plan.Shadow.TryGetValue(key, out var shadow))
+        {
+            // 既存のシャドウコピーから読む（新しいスナップショットは作らない。シャドウコピーは消さない）
+            var dev = shadow.DeviceObject;
+            input.Open = () => HandleSource.OpenDevice(dev);
+            plan.ShadowUsed.Add(key);
+        }
+        else if (snaps != null && v.FileSystem is "NTFS" or "ReFS")
         {
             snaps.Add((rec, v.GuidPath, f => input.Open = f));
         }
@@ -190,7 +228,7 @@ public static class SourcePlanner
             input.Open = () => HandleSource.OpenDevice(path);
         }
         if (part != null) part.Volume = plan.Volumes.Count;
-        plan.Volumes.Add(new VolumeInput { Record = rec, Open = () => (input.Open ?? throw new InvalidOperationException("スナップショット未作成"))() });
+        plan.Volumes.Add(new VolumeInput { Record = rec, Open = () => (input.Open ?? throw new InvalidOperationException(T("スナップショット未作成")))() });
     }
 
     sealed class Holder
@@ -201,8 +239,8 @@ public static class SourcePlanner
 
     static void AddSystemDisk(SourcePlan plan, List<VolumeInfo> live, List<(VolumeRecord, string, Action<Func<IVolumeSource>>)>? snaps, Action<string> log)
     {
-        var sys = live.FirstOrDefault(v => v.IsSystem) ?? throw new IOException("Windows のボリュームが見つかりません。");
-        if (sys.Disk is not int dn) throw new NotSupportedException("システムボリュームが複数ディスクにまたがっています（ダイナミックディスク等は非対応）。");
+        var sys = live.FirstOrDefault(v => v.IsSystem) ?? throw new IOException(T("Windows のボリュームが見つかりません。"));
+        if (sys.Disk is not int dn) throw new NotSupportedException(T("システムボリュームが複数ディスクにまたがっています（ダイナミックディスク等は非対応）。"));
         AddPhysicalDisk(plan, dn, live, snaps, log, system: true);
     }
 
@@ -213,7 +251,7 @@ public static class SourcePlanner
         if (plan.Disks.Any(d => d.Number == dn)) return;
         var disk = DiskLayout.Read(dn);
         disk.Index = plan.Disks.Count;
-        log($"{(system ? "システムディスク" : "ディスク")}: ディスク {dn}（{disk.Model}、{Fmt.Size(disk.Size)}、{disk.Style}、パーティション {disk.Partitions.Count} 個）");
+        log(T("{0}: ディスク {1}（{2}、{3}、{4}、パーティション {5} 個）", system ? T("システムディスク") : T("ディスク"), dn, disk.Model, Fmt.Size(disk.Size), disk.Style, disk.Partitions.Count));
         foreach (var p in disk.Partitions)
         {
             bool esp = string.Equals(p.TypeGuid, PartitionRecord.EspType, StringComparison.OrdinalIgnoreCase);
@@ -225,13 +263,13 @@ public static class SourcePlanner
                 continue;
             }
             // ボリュームとして見えないパーティション（OEM 領域など）は物理ディスクから直接読む
-            var rec = new VolumeRecord { Label = $"パーティション {p.Number}", VolumeGuid = p.PartitionGuid, Disk = disk.Index, DiskOffset = p.Offset, IsBoot = esp || p.Active };
+            var rec = new VolumeRecord { Label = T("パーティション {0}", p.Number), VolumeGuid = p.PartitionGuid, Disk = disk.Index, DiskOffset = p.Offset, IsBoot = esp || p.Active };
             long off = p.Offset, len = p.Length;
             p.Volume = plan.Volumes.Count;
             plan.Volumes.Add(new VolumeInput { Record = rec, Open = () => HandleSource.OpenDevice($@"\\.\PhysicalDrive{dn}", off, len) });
         }
         if (system && !disk.Partitions.Any(p => p.Volume is int i && plan.Volumes[i].Record.IsBoot))
-            log("警告: システムディスクにブートパーティションが見つかりません。復元後に起動できない可能性があります。");
+            log(T("警告: システムディスクにブートパーティションが見つかりません。復元後に起動できない可能性があります。"));
         plan.Disks.Add(disk);
     }
 }

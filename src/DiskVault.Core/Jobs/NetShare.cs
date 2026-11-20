@@ -14,7 +14,7 @@ public sealed partial class NetShare : IDisposable
     public static string ShareRoot(string unc)
     {
         var parts = unc.TrimStart('\\').Split('\\', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length < 2) throw new ArgumentException($"{unc} は共有フォルダのパスではありません。");
+        if (parts.Length < 2) throw new ArgumentException(T("{0} は共有フォルダのパスではありません。", unc));
         return $@"\\{parts[0]}\{parts[1]}";
     }
 
@@ -35,7 +35,7 @@ public sealed partial class NetShare : IDisposable
             WNetCancelConnection2W(root, 0, true);
             rc = WNetAddConnection2W(ref res, pass, user, 0);
         }
-        if (rc != 0 && rc != 85) throw new IOException($"{root} に接続できません: {new Win32Exception(rc).Message}（{rc}）");
+        if (rc != 0 && rc != 85) throw new IOException(T("{0} に接続できません: {1}（{2}）", root, new Win32Exception(rc).Message, rc));
         return new NetShare(root);
     }
 

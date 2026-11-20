@@ -34,7 +34,7 @@ public partial class DashboardPage : UserControl, IPage
             var (resp, svc, status) = await Task.Run(() =>
             {
                 var r = Ipc.Call(new IpcRequest { Cmd = "status" }, 800);
-                return (r, r?.Ok == true ? $"実行中（v{r.Version}）" : ServiceCtl.Describe(), ServiceCtl.Status());
+                return (r, r?.Ok == true ? T("実行中（v{0}）", r.Version) : ServiceCtl.Describe(), ServiceCtl.Status());
             });
             SvcText.Text = svc;
             List<JobState> jobs;
@@ -54,18 +54,18 @@ public partial class DashboardPage : UserControl, IPage
                 SvcButton.Visibility = Sys.IsAdmin ? Visibility.Visible : Visibility.Collapsed;
                 if (status == null && Sys.IsPackaged)
                 {
-                    SvcBannerText.Text = "バックアップ サービスが見つかりません。Microsoft Store から DiskVault を修復（または再インストール）してください。";
+                    SvcBannerText.Text = T("バックアップ サービスが見つかりません。Microsoft Store から DiskVault を修復（または再インストール）してください。");
                     SvcButton.Visibility = Visibility.Collapsed;
                 }
                 else if (status == null)
                 {
-                    SvcBannerText.Text = "バックアップ サービスが登録されていません。スケジュール実行と「今すぐ実行」にはサービスが必要です。";
-                    SvcButton.Content = "サービスを登録";
+                    SvcBannerText.Text = T("バックアップ サービスが登録されていません。スケジュール実行と「今すぐ実行」にはサービスが必要です。");
+                    SvcButton.Content = T("サービスを登録");
                 }
                 else
                 {
-                    SvcBannerText.Text = "バックアップ サービスが停止しています。";
-                    SvcButton.Content = "サービスを開始";
+                    SvcBannerText.Text = T("バックアップ サービスが停止しています。");
+                    SvcButton.Content = T("サービスを開始");
                 }
             }
             Empty.Visibility = jobs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -108,13 +108,13 @@ public partial class DashboardPage : UserControl, IPage
             if (ServiceCtl.Status() == null)
             {
                 var (code, output) = await Task.Run(() => ServiceCtl.RunServiceExe("install"));
-                if (code != 0) MessageBox.Show(output, "サービスの登録", MessageBoxButton.OK, MessageBoxImage.Warning);
+                if (code != 0) MessageBox.Show(output, T("サービスの登録"), MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else await Task.Run(ServiceCtl.Start);
         }
         catch (Exception ex) when (ex is InvalidOperationException or System.ServiceProcess.TimeoutException or System.ComponentModel.Win32Exception)
         {
-            MessageBox.Show(ex.Message, "サービス", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(ex.Message, T("サービス"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
         finally { SvcButton.IsEnabled = true; }
         await Refresh();
@@ -139,9 +139,12 @@ public partial class DashboardPage : UserControl, IPage
         readonly ProgressBar _bar = new() { Height = 8, Margin = new Thickness(0, 8, 0, 4), Maximum = 1000 };
         readonly TextBlock _prog = new() { Foreground = Brushes.DimGray, TextTrimming = TextTrimming.CharacterEllipsis };
         readonly StackPanel _progPanel = new() { Visibility = Visibility.Collapsed };
-        readonly Button _inc = new() { Content = "今すぐ増分" };
-        readonly Button _full = new() { Content = "今すぐフル" };
-        readonly Button _cancel = new() { Content = "中止", Visibility = Visibility.Collapsed };
+        readonly Button _inc = new() { Content = T("今すぐ増分") };
+        readonly Button _full = new() { Content = T("今すぐフル") };
+        readonly Button _cancel = new() { Content = T("中止"), Visibility = Visibility.Collapsed };
+        readonly Button _shadow = new() { Content = T("シャドウコピーから…"), HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 6, 0, 0),
+                                           ToolTip = T("Windows に残っているシャドウコピー（システムの復元ポイントなど）の時点の内容でバックアップします") };
+        string _name0 = "";
 
         public JobCard(string id)
         {
@@ -153,19 +156,22 @@ public partial class DashboardPage : UserControl, IPage
             var left = new StackPanel();
             left.Children.Add(_name);
             left.Children.Add(_sched);
-            left.Children.Add(Caption("前回"));
+            left.Children.Add(Caption(T("前回")));
             left.Children.Add(_lastStatus);
             left.Children.Add(_lastDetail);
             grid.Children.Add(left);
             var mid = new StackPanel { Margin = new Thickness(16, 0, 16, 0) };
-            mid.Children.Add(Caption("次回の予定"));
+            mid.Children.Add(Caption(T("次回の予定")));
             mid.Children.Add(_next);
             Grid.SetColumn(mid, 1);
             grid.Children.Add(mid);
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
-            buttons.Children.Add(_inc);
-            buttons.Children.Add(_full);
-            buttons.Children.Add(_cancel);
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            row.Children.Add(_inc);
+            row.Children.Add(_full);
+            row.Children.Add(_cancel);
+            var buttons = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
+            buttons.Children.Add(row);
+            buttons.Children.Add(_shadow);
             Grid.SetColumn(buttons, 2);
             grid.Children.Add(buttons);
             _progPanel.Children.Add(_bar);
@@ -176,62 +182,68 @@ public partial class DashboardPage : UserControl, IPage
             Root = new Border { Style = (Style)Application.Current.FindResource("Card"), Child = outer };
             _inc.Click += (_, _) => Run(PointKind.Incremental);
             _full.Click += (_, _) => Run(PointKind.Full);
+            _shadow.Click += (_, _) =>
+            {
+                var w = new ShadowCopyWindow(_id, _name0) { Owner = Window.GetWindow(Root) };
+                if (w.ShowDialog() == true && w.Selected.Count > 0) Run(w.Kind, w.Selected);
+            };
             _cancel.Click += (_, _) =>
             {
-                if (MessageBox.Show("実行中のバックアップを中止しますか？", "中止", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                if (MessageBox.Show(T("実行中のバックアップを中止しますか？"), T("中止"), MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                     Ipc.Call(new IpcRequest { Cmd = "cancel", JobId = _id });
             };
         }
 
         static TextBlock Caption(string s) => new() { Text = s, Foreground = Brushes.Gray, FontSize = 11, Margin = new Thickness(0, 4, 0, 0) };
 
-        void Run(PointKind k)
+        void Run(PointKind k, List<string>? shadows = null)
         {
-            var r = Ipc.Call(new IpcRequest { Cmd = "run", JobId = _id, Kind = k });
-            if (r == null) MessageBox.Show("サービスに接続できません。", "実行", MessageBoxButton.OK, MessageBoxImage.Warning);
-            else if (!r.Ok) MessageBox.Show(r.Error, "実行", MessageBoxButton.OK, MessageBoxImage.Warning);
+            var r = Ipc.Call(new IpcRequest { Cmd = "run", JobId = _id, Kind = k, Shadows = shadows });
+            if (r == null) MessageBox.Show(T("サービスに接続できません。"), T("実行"), MessageBoxButton.OK, MessageBoxImage.Warning);
+            else if (!r.Ok) MessageBox.Show(r.Error, T("実行"), MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         public void Update(JobState j, bool online)
         {
-            _name.Text = j.Name + (j.Enabled ? "" : "（無効）");
+            _name0 = j.Name;
+            _name.Text = j.Name + (j.Enabled ? "" : T("（無効）"));
             _sched.Text = j.Schedule;
             if (j.Last is { } l)
             {
-                _lastStatus.Text = $"{l.StatusText}  {l.End:yyyy/MM/dd HH:mm}（{(l.Kind == PointKind.Full ? "フル" : "増分")}）";
+                _lastStatus.Text = T("{0}  {1:yyyy/MM/dd HH:mm}（{2}）", l.StatusText, l.End, l.Kind == PointKind.Full ? T("フル") : T("増分"));
                 _lastStatus.Foreground = (Brush)Application.Current.FindResource(l.Status switch
                 {
                     JobStatus.Success => "Ok", JobStatus.Warning => "Warn", _ => "Bad",
                 });
                 _lastDetail.Text = l.Error ?? (l.ReadBytes > 0
-                    ? $"読み取り {Fmt.Size(l.ReadBytes)} ・ 新規 {Fmt.Size(l.NewBytes)} ・ 保存 {Fmt.Size(l.StoredBytes)} ・ {Fmt.Duration(l.End - l.Start)} ・ ポイント {l.Points} 個"
+                    ? T("読み取り {0} ・ 新規 {1} ・ 保存 {2} ・ {3} ・ ポイント {4} 個", Fmt.Size(l.ReadBytes), Fmt.Size(l.NewBytes), Fmt.Size(l.StoredBytes), Fmt.Duration(l.End - l.Start), l.Points)
                     : "") + (l.Warnings.Count > 0 ? "\n" + string.Join("\n", l.Warnings) : "");
             }
             else
             {
-                _lastStatus.Text = "まだ実行していません";
+                _lastStatus.Text = T("まだ実行していません");
                 _lastStatus.Foreground = Brushes.Gray;
                 _lastDetail.Text = "";
             }
-            _next.Text = j.Next is { } n ? $"{n:MM/dd (ddd) HH:mm}\n{(j.NextKind == PointKind.Full ? "フル" : "増分")}" : "なし";
+            _next.Text = j.Next is { } n ? $"{n:MM/dd (ddd) HH:mm}\n{(j.NextKind == PointKind.Full ? T("フル") : T("増分"))}" : T("なし");
             bool running = j.Running || j.Queued;
-            _inc.IsEnabled = _full.IsEnabled = online && !running;
+            _inc.IsEnabled = _full.IsEnabled = _shadow.IsEnabled = online && !running;
             _cancel.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
             _progPanel.Visibility = running ? Visibility.Visible : Visibility.Collapsed;
             if (j.Queued && !j.Running)
             {
                 _bar.IsIndeterminate = true;
-                _prog.Text = "待機中（ほかのジョブの終了後に開始）";
+                _prog.Text = T("待機中（ほかのジョブの終了後に開始）");
             }
             else if (j.Progress is { } p)
             {
                 _bar.IsIndeterminate = p.Total == 0;
                 _bar.Value = p.Total > 0 ? p.Done * 1000.0 / p.Total : 0;
                 var pct = p.Total > 0 ? $"{p.Done * 100 / p.Total}%  " : "";
-                var vol = p.VolumeCount > 0 ? $"ボリューム {p.Volume + 1}/{p.VolumeCount}  " : "";
+                var vol = p.VolumeCount > 0 ? T("ボリューム {0}/{1}", p.Volume + 1, p.VolumeCount) + "  " : "";
                 var rate = p.Rate > 0 ? $"  {Fmt.Rate(p.Rate)}" : "";
-                var eta = p.Rate > 0 && p.Total > p.Done ? $"  残り約 {Fmt.Duration(TimeSpan.FromSeconds((p.Total - p.Done) / p.Rate))}" : "";
-                _prog.Text = $"{p.Phase}  {vol}{pct}{Fmt.Size(p.Done)} / {Fmt.Size(p.Total)}{rate}{eta}  新規 {Fmt.Size(p.NewBytes)}   {p.LastLog}";
+                var eta = p.Rate > 0 && p.Total > p.Done ? "  " + T("残り約 {0}", Fmt.Duration(TimeSpan.FromSeconds((p.Total - p.Done) / p.Rate))) : "";
+                _prog.Text = $"{p.Phase}  {vol}{pct}{Fmt.Size(p.Done)} / {Fmt.Size(p.Total)}{rate}{eta}  {T("新規 {0}", Fmt.Size(p.NewBytes))}   {p.LastLog}";
             }
         }
     }

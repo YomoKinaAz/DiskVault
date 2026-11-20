@@ -140,7 +140,7 @@ public sealed class PartitionBar : FrameworkElement
             // 前の空き（広ければ大きさを書く）
             long gap = Up(p.GapBefore);
             if (gap > 0 && x - prevEnd > 46)
-                dc.DrawText(Txt($"空き\n{Gb(gap)}", Dark, 11), new Point(prevEnd + 5, BarTop + 6));
+                dc.DrawText(Txt(T("空き") + "\n" + Gb(gap), Dark, 11), new Point(prevEnd + 5, BarTop + 6));
             prevEnd = x + w;
             if (x >= W) break;
             var r = new Rect(x, BarTop, Math.Max(1, Math.Min(w, W - x)), BarH);
@@ -150,7 +150,7 @@ public sealed class PartitionBar : FrameworkElement
             if (p.Resizable && p.NewLength > 0)
                 dc.DrawRectangle(UsedBrush, null, new Rect(x, BarTop + BarH - 10, w * Math.Min(1, p.MinLength / (double)p.NewLength), 10));
             dc.DrawText(Txt($"{p.Source.Number}  {_name(p)}", Text, 12, true, w - 10), new Point(x + 6, BarTop + 6));
-            dc.DrawText(Txt(Gb(p.NewLength) + (p.Fill ? "（残り全体）" : ""), Text, 12, false, w - 10), new Point(x + 6, BarTop + 24));
+            dc.DrawText(Txt(Gb(p.NewLength) + (p.Fill ? T("（残り全体）") : ""), Text, 12, false, w - 10), new Point(x + 6, BarTop + 24));
             dc.Pop();
             if (i == _drag) dc.DrawRectangle(null, FocusPen, new Rect(x + 1, BarTop + 1, Math.Max(1, w - 2), BarH - 2));
             dc.DrawLine(Edge, new Point(x, BarTop), new Point(x, BarTop + BarH));
@@ -166,18 +166,18 @@ public sealed class PartitionBar : FrameworkElement
         if (free < 0)
         {
             dc.DrawRectangle(null, new Pen(Red, 2), new Rect(1, BarTop + 1, W - 2, BarH - 2));
-            dc.DrawText(Txt($"{Gb(-free)} 不足しています", Red), new Point(0, BarTop + BarH + 2));
+            dc.DrawText(Txt(T("{0} 不足しています", Gb(-free)), Red), new Point(0, BarTop + BarH + 2));
             return;
         }
         if (free >= Align * 16 && W - prevEnd > 50)
-            dc.DrawText(Txt($"未割り当て\n{Gb(free)}", Dark, 11), new Point(prevEnd + 6, BarTop + 6));
+            dc.DrawText(Txt(T("未割り当て") + "\n" + Gb(free), Dark, 11), new Point(prevEnd + 6, BarTop + 6));
         string info;
         if (_drag >= 0 && _move)
-            info = $"パーティション {_plan[_drag].Source.Number}: 開始位置 {Gb(offs[_drag])}（前の空き {Gb(Up(_plan[_drag].GapBefore))}）";
+            info = T("パーティション {0}: 開始位置 {1}（前の空き {2}）", _plan[_drag].Source.Number, Gb(offs[_drag]), Gb(Up(_plan[_drag].GapBefore)));
         else if (_drag >= 0)
-            info = $"パーティション {_plan[_drag].Source.Number}: {Gb(_plan[_drag].NewLength)}（最小 {Gb(_plan[_drag].MinLength)}）";
+            info = T("パーティション {0}: {1}（最小 {2}）", _plan[_drag].Source.Number, Gb(_plan[_drag].NewLength), Gb(_plan[_drag].MinLength));
         else
-            info = "右端のつまみ＝サイズ変更　中ほどをドラッグ＝位置の移動　ダブルクリック＝「残り全体」に";
+            info = T("右端のつまみ＝サイズ変更　中ほどをドラッグ＝位置の移動　ダブルクリック＝「残り全体」に");
         dc.DrawText(Txt(info, Muted, 11.5), new Point(0, BarTop + BarH + 2));
     }
 

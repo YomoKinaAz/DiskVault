@@ -24,7 +24,7 @@ public static partial class BootFix
         var win = vols.FirstOrDefault(v => v.Letter != null && Directory.Exists(Path.Combine(v.Letter + "\\", "Windows", "System32")));
         if (win == null)
         {
-            log.Add("ブート構成: 復元したディスクに Windows フォルダが見つからないため、bcdboot は実行しませんでした。");
+            log.Add(T("ブート構成: 復元したディスクに Windows フォルダが見つからないため、bcdboot は実行しませんでした。"));
             return log;
         }
         bool uefi = disk.Style == "GPT";
@@ -34,16 +34,16 @@ public static partial class BootFix
         var bootVol = bootPart == null ? null : vols.FirstOrDefault(v => v.DiskOffset == bootPart.Offset);
         if (bootVol == null)
         {
-            log.Add("ブート構成: ブートパーティションが見つからないため、bcdboot は実行しませんでした。");
+            log.Add(T("ブート構成: ブートパーティションが見つからないため、bcdboot は実行しませんでした。"));
             return log;
         }
         string? tempLetter = null;
         var sysLetter = bootVol.Letter;
         if (sysLetter == null)
         {
-            tempLetter = FreeLetter() ?? throw new IOException("空いているドライブ文字がありません。");
+            tempLetter = FreeLetter() ?? throw new IOException(T("空いているドライブ文字がありません。"));
             if (!SetVolumeMountPointW(tempLetter + "\\", bootVol.GuidPath))
-                throw new IOException($"ブートパーティションにドライブ文字を割り当てられません（{Marshal.GetLastPInvokeError()}）。");
+                throw new IOException(T("ブートパーティションにドライブ文字を割り当てられません（{0}）。", Marshal.GetLastPInvokeError()));
             sysLetter = tempLetter;
         }
         try
@@ -53,7 +53,7 @@ public static partial class BootFix
             using var p = Process.Start(psi)!;
             var o = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
             p.WaitForExit();
-            log.Add(p.ExitCode == 0 ? $"ブート構成を作り直しました（bcdboot {args}）。" : $"bcdboot が失敗しました（{p.ExitCode}）: {o.Trim()}");
+            log.Add(p.ExitCode == 0 ? T("ブート構成を作り直しました（bcdboot {0}）。", args) : T("bcdboot が失敗しました（{0}）: {1}", p.ExitCode, o.Trim()));
         }
         finally
         {

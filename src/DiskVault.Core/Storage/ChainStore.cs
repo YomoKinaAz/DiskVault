@@ -41,7 +41,7 @@ public sealed class ChainStore : IDisposable
         Chain = chain;
         Dir = repo.ChainDir(chain);
         if (forWrite) Directory.CreateDirectory(Path.Combine(Dir, "packs"));
-        else if (!Directory.Exists(Dir)) throw new DirectoryNotFoundException($"チェーン {chain} のデータが見つかりません。");
+        else if (!Directory.Exists(Dir)) throw new DirectoryNotFoundException(T("チェーン {0} のデータが見つかりません。", chain));
         LoadIndex();
     }
 
@@ -139,7 +139,7 @@ public sealed class ChainStore : IDisposable
     /// <summary>ブロックを追加する（既にあれば何もしない）。書いたバイト数を返す。</summary>
     public long Add(BlockId id, byte codec, int rawLen, ReadOnlySpan<byte> payload)
     {
-        if (!_write) throw new InvalidOperationException("読み取り専用で開いています。");
+        if (!_write) throw new InvalidOperationException(T("読み取り専用で開いています。"));
         if (_index.ContainsKey(id)) return 0;
         if (_cur == null) StartPack();
         long off = _cur!.Position;
@@ -204,14 +204,14 @@ public sealed class ChainStore : IDisposable
     /// <summary>ブロックを読み、復号・伸張・ハッシュ検証して dest に書く。</summary>
     public void Read(BlockId id, Span<byte> dest)
     {
-        if (!_index.TryGetValue(id, out var loc)) throw new InvalidDataException($"ブロック {id} がチェーン {Chain} にありません（データ欠落）。");
-        if (loc.RawLen != dest.Length) throw new InvalidDataException($"ブロック {id} の長さが一致しません。");
+        if (!_index.TryGetValue(id, out var loc)) throw new InvalidDataException(T("ブロック {0} がチェーン {1} にありません（データ欠落）。", id, Chain));
+        if (loc.RawLen != dest.Length) throw new InvalidDataException(T("ブロック {0} の長さが一致しません。", id));
         var buf = System.Buffers.ArrayPool<byte>.Shared.Rent(RecHeader + loc.PayloadLen);
         try
         {
             var span = buf.AsSpan(0, RecHeader + loc.PayloadLen);
             ReadExact(loc.Pack, loc.Offset, span);
-            if (!new BlockId(span).Equals(id)) throw new InvalidDataException($"pack 内のブロック {id} のヘッダが不正です。");
+            if (!new BlockId(span).Equals(id)) throw new InvalidDataException(T("pack 内のブロック {0} のヘッダが不正です。", id));
             _repo.Codec.Decode(id, loc.Codec, span[RecHeader..], dest);
         }
         finally { System.Buffers.ArrayPool<byte>.Shared.Return(buf); }
@@ -225,7 +225,7 @@ public sealed class ChainStore : IDisposable
         while (got < dest.Length)
         {
             int n = RandomAccess.Read(h, dest[got..], off + got);
-            if (n <= 0) throw new InvalidDataException($"{_packs[pack]} が途中で切れています。");
+            if (n <= 0) throw new InvalidDataException(T("{0} が途中で切れています。", _packs[pack]));
             got += n;
         }
     }
@@ -254,7 +254,7 @@ public sealed class ChainStore : IDisposable
     /// <summary>live に含まれないブロックを消す。空の pack は削除、生きているデータが threshold 未満の pack は詰め直す。</summary>
     public CompactResult Compact(HashSet<BlockId> live, double threshold = 0.5)
     {
-        if (!_write) throw new InvalidOperationException("読み取り専用で開いています。");
+        if (!_write) throw new InvalidOperationException(T("読み取り専用で開いています。"));
         Flush();
         var byPack = new Dictionary<int, List<(BlockId Id, BlockLoc Loc)>>();
         foreach (var (id, loc) in _index)

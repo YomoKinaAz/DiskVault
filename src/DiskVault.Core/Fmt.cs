@@ -12,8 +12,8 @@ public static class Fmt
     }
 
     public static string Duration(TimeSpan t) =>
-        t.TotalHours >= 1 ? $"{(int)t.TotalHours}時間{t.Minutes}分" :
-        t.TotalMinutes >= 1 ? $"{t.Minutes}分{t.Seconds}秒" : $"{t.TotalSeconds:0.0}秒";
+        t.TotalHours >= 1 ? T("{0}時間{1}分", (int)t.TotalHours, t.Minutes) :
+        t.TotalMinutes >= 1 ? T("{0}分{1}秒", t.Minutes, t.Seconds) : T("{0:0.0}秒", t.TotalSeconds);
 
     public static string Rate(double bps) => Size((long)bps) + "/s";
 }

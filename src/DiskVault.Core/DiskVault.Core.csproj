@@ -16,4 +16,9 @@
     <PackageReference Include="ZstdSharp.Port" Version="0.8.8" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 英語の翻訳表（日本語 → 英語）。Loc.T が引く -->
+    <EmbeddedResource Include="Lang\en.json" LogicalName="$(AssemblyName).Lang.en.json" />
+    <Using Include="DiskVault.Loc" Static="true" />
+  </ItemGroup>
 </Project>

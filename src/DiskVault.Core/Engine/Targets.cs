@@ -12,7 +12,7 @@ public static unsafe class Targets
     public static IVolumeTarget Open(string path, long size, bool confirmed)
     {
         if (!IsDevice(path)) return HandleTarget.CreateFile(path, size);
-        if (!confirmed) throw new InvalidOperationException($"{path} の内容はすべて上書きされます。よければ --yes を付けてください。");
+        if (!confirmed) throw new InvalidOperationException(T("{0} の内容はすべて上書きされます。よければ --yes を付けてください。", path));
         var m = System.Text.RegularExpressions.Regex.Match(path, @"^\\\\\.\\PhysicalDrive(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         if (m.Success) return OpenDisk(int.Parse(m.Groups[1].Value), size);
         return OpenVolume(path, size);
@@ -43,7 +43,7 @@ public static unsafe class Targets
         if (!locked)
         {
             h.Dispose();
-            throw new IOException($"{volPath} をロックできません。開いているファイルやエクスプローラーを閉じてください。");
+            throw new IOException(T("{0} をロックできません。開いているファイルやエクスプローラーを閉じてください。", volPath));
         }
         Native.DeviceIoControl(h, Native.FSCTL_DISMOUNT_VOLUME, null, 0, null, 0, out _, 0);
         return h;
@@ -53,7 +53,7 @@ public static unsafe class Targets
     {
         var vols = VolumeInfo.Enumerate().Where(v => v.Disk == n).ToList();
         if (vols.Any(v => v.IsSystem) && !IsWinPE)
-            throw new InvalidOperationException($"ディスク {n} には実行中の Windows があります。システムディスクへの復元は回復環境（WinPE）から行ってください。");
+            throw new InvalidOperationException(T("ディスク {0} には実行中の Windows があります。システムディスクへの復元は回復環境（WinPE）から行ってください。", n));
         var locks = new List<SafeFileHandle>();
         try
         {
@@ -63,7 +63,7 @@ public static unsafe class Targets
             if (len < size)
             {
                 h.Dispose();
-                throw new IOException($"ディスク {n}（{Fmt.Size(len)}）は復元に必要な容量（{Fmt.Size(size)}）より小さいです。");
+                throw new IOException(T("ディスク {0}（{1}）は復元に必要な容量（{2}）より小さいです。", n, Fmt.Size(len), Fmt.Size(size)));
             }
             return new DeviceTarget($@"\\.\PhysicalDrive{n}", h, len, locks, isDisk: true);
         }
@@ -77,14 +77,14 @@ public static unsafe class Targets
     static IVolumeTarget OpenVolume(string path, long size)
     {
         var info = VolumeInfo.Find(path.Replace(@"\\.\", ""));
-        if (info?.IsSystem == true && !IsWinPE) throw new InvalidOperationException("実行中の Windows のボリュームには復元できません。");
+        if (info?.IsSystem == true && !IsWinPE) throw new InvalidOperationException(T("実行中の Windows のボリュームには復元できません。"));
         var h = LockAndDismount(path);
         Native.DeviceIoControl(h, Native.FSCTL_ALLOW_EXTENDED_DASD_IO, null, 0, null, 0, out _, 0);
         long len = Native.GetLength(h) ?? 0;
         if (len < size)
         {
             h.Dispose();
-            throw new IOException($"{path}（{Fmt.Size(len)}）は元のボリューム（{Fmt.Size(size)}）より小さいです。");
+            throw new IOException(T("{0}（{1}）は元のボリューム（{2}）より小さいです。", path, Fmt.Size(len), Fmt.Size(size)));
         }
         return new DeviceTarget(path, h, len, [], isDisk: false);
     }

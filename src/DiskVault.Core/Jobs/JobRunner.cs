@@ -29,10 +29,10 @@ public sealed class JobResult
 
     public string StatusText => Status switch
     {
-        JobStatus.Success => "成功",
-        JobStatus.Warning => "警告あり",
-        JobStatus.Failed => "失敗",
-        _ => "中止",
+        JobStatus.Success => T("成功"),
+        JobStatus.Warning => T("警告あり"),
+        JobStatus.Failed => T("失敗"),
+        _ => IsEnglish ? "Canceled" : "中止", // 「中止」は GUI のボタン（Cancel）と同じキーになるため T() を使わない
     };
 }
 
@@ -108,14 +108,15 @@ public static class History
 /// <summary>ジョブを 1 回実行する：共有フォルダ接続 → スナップショット → バックアップ → 世代整理 →（検証）→ 履歴・メール。</summary>
 public static class JobRunner
 {
+    /// shadows: 既存のシャドウコピーの ID（そのボリュームはシャドウコピーの時点の内容でバックアップする）。
     public static JobResult Run(AppConfig cfg, JobConfig job, PointKind kind, string trigger, Action<JobProgress>? onProgress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, IReadOnlyList<string>? shadows = null)
     {
         var r = new JobResult { JobId = job.Id, JobName = job.Name, Kind = kind, Trigger = trigger, Start = DateTime.Now };
         var logDir = Path.Combine(AppConfig.Dir, "logs", job.Id);
         Directory.CreateDirectory(logDir);
         r.LogFile = Path.Combine(logDir, $"{r.Start:yyyyMMdd-HHmmss}.log");
-        var prog = new JobProgress { Started = r.Start, Kind = kind, Phase = "準備中" };
+        var prog = new JobProgress { Started = r.Start, Kind = kind, Phase = T("準備中") };
         using var logw = new StreamWriter(r.LogFile, append: true) { AutoFlush = true };
         var tail = new List<string>();
         void Log(string m)
@@ -126,20 +127,20 @@ public static class JobRunner
             prog.LastLog = m;
             onProgress?.Invoke(prog);
         }
-        Log($"ジョブ「{job.Name}」開始（{(kind == PointKind.Full ? "フル" : "増分")}、{(trigger == "schedule" ? "スケジュール" : "手動")}）");
+        Log(T("ジョブ「{0}」開始（{1}、{2}）", job.Name, kind == PointKind.Full ? T("フル") : T("増分"), trigger == "schedule" ? T("スケジュール") : T("手動")));
         try
         {
-            if (string.IsNullOrWhiteSpace(job.Destination.Path)) throw new InvalidOperationException("バックアップ先が設定されていません。");
+            if (string.IsNullOrWhiteSpace(job.Destination.Path)) throw new InvalidOperationException(T("バックアップ先が設定されていません。"));
             using var share = NetShare.Connect(job.Destination);
             var repoPath = job.RepoPath;
-            Log($"バックアップ先: {repoPath}");
+            Log(T("バックアップ先: {0}", repoPath));
             var pw = Secret.Unprotect(job.EncryptionPasswordEnc);
             var repo = Repository.OpenOrCreate(repoPath, pw, level: job.CompressionLevel);
             if (repo.IsEncrypted != (pw != null))
-                Log(repo.IsEncrypted ? "注意: バックアップ先は暗号化されています。" : "注意: バックアップ先は既存の暗号化なしのリポジトリです（暗号化設定は新しい保存先から有効になります）。");
-            using (var plan = SourcePlanner.Build(job.Sources, Log, job.VssWriters, job.VssFullBackup))
+                Log(repo.IsEncrypted ? T("注意: バックアップ先は暗号化されています。") : T("注意: バックアップ先は既存の暗号化なしのリポジトリです（暗号化設定は新しい保存先から有効になります）。"));
+            using (var plan = SourcePlanner.Build(job.Sources, Log, job.VssWriters, job.VssFullBackup, shadows: shadows))
             {
-                prog.Phase = "バックアップ中";
+                prog.Phase = T("バックアップ中");
                 var point = BackupEngine.Run(repo, plan.Volumes, new BackupOptions
                 {
                     Job = job.Name,
@@ -148,11 +149,13 @@ public static class JobRunner
                     ExcludeSystemFiles = job.ExcludeSystemFiles,
                     Warnings = [.. plan.Warnings],
                     Consistency = plan.Consistency,
+                    SourceTime = plan.SourceTime,
+                    Comment = plan.SourceTime is { } st ? T("シャドウコピー（{0:yyyy/MM/dd HH:mm}）の内容", st) : null,
                 }, new Progress(prog, onProgress), Log, ct);
                 plan.Complete();
                 if (plan.Writers.Count > 0)
-                    Log($"VSS ライター: " + string.Join("、", plan.Writers.Select(w => w.Error == 0 && !w.State.Contains("失敗") ? w.Writer : $"{w.Writer}（{w.State}）")));
-                foreach (var w in plan.Warnings.Except(point.Warnings)) { r.Warnings.Add(w); Log("警告: " + w); }
+                    Log(T("VSS ライター: {0}", string.Join(T("、"), plan.Writers.Select(w => w.Error == 0 && !Platform.VssSet.IsFailedState(w.State) ? w.Writer : T("{0}（{1}）", w.Writer, w.State)))));
+                foreach (var w in plan.Warnings.Except(point.Warnings)) { r.Warnings.Add(w); Log(T("警告: {0}", w)); }
                 r.Kind = point.Kind;
                 r.PointId = point.Id;
                 r.ReadBytes = point.Stats.ReadBytes;
@@ -161,13 +164,13 @@ public static class JobRunner
                 r.Warnings.AddRange(point.Warnings);
             }
             ct.ThrowIfCancellationRequested();
-            prog.Phase = "世代整理中";
+            prog.Phase = T("世代整理中");
             onProgress?.Invoke(prog);
             var ret = Maintenance.ApplyRetention(repo, job.Keep, Log);
-            if (ret.DeletedPoints.Count > 0) Log($"世代整理: {ret.DeletedPoints.Count} ポイント削除、{Fmt.Size(ret.FreedBytes)} 解放");
+            if (ret.DeletedPoints.Count > 0) Log(T("世代整理: {0} ポイント削除、{1} 解放", ret.DeletedPoints.Count, Fmt.Size(ret.FreedBytes)));
             if (job.VerifyAfterBackup && r.PointId != null)
             {
-                prog.Phase = "検証中";
+                prog.Phase = T("検証中");
                 var v = Maintenance.Verify(repo, [repo.GetPoint(r.PointId)], new Progress<(long Done, long Total)>(x =>
                 {
                     prog.Done = x.Done;
@@ -176,10 +179,10 @@ public static class JobRunner
                 }), ct);
                 if (v.Bad > 0)
                 {
-                    r.Warnings.Add($"検証で {v.Bad} 件のエラー: {string.Join(" / ", v.Errors.Take(3))}");
-                    Log($"検証 NG: {v.Bad} 件");
+                    r.Warnings.Add(T("検証で {0} 件のエラー: {1}", v.Bad, string.Join(" / ", v.Errors.Take(3))));
+                    Log(T("検証 NG: {0} 件", v.Bad));
                 }
-                else Log($"検証 OK（{v.Blocks} ブロック）");
+                else Log(T("検証 OK（{0} ブロック）", v.Blocks));
             }
             r.Points = repo.ListPoints().Count;
             r.Status = r.Warnings.Count > 0 ? JobStatus.Warning : JobStatus.Success;
@@ -187,7 +190,7 @@ public static class JobRunner
         catch (OperationCanceledException)
         {
             r.Status = JobStatus.Canceled;
-            r.Error = "ユーザーが中止しました。";
+            r.Error = T("ユーザーが中止しました。");
         }
         catch (Exception e)
         {
@@ -196,10 +199,10 @@ public static class JobRunner
             logw.WriteLine(e.ToString());
         }
         r.End = DateTime.Now;
-        Log($"終了: {r.StatusText}{(r.Error != null ? " - " + r.Error : "")}（{Fmt.Duration(r.End - r.Start)}）");
+        Log(T("終了: {0}{1}（{2}）", r.StatusText, r.Error != null ? " - " + r.Error : "", Fmt.Duration(r.End - r.Start)));
         lock (tail) r.LogTail = [.. tail];
         var mailErr = Mailer.NotifyJob(cfg.Mail, r);
-        if (mailErr != null) logw.WriteLine($"{DateTime.Now:HH:mm:ss} メール送信に失敗: {mailErr}");
+        if (mailErr != null) logw.WriteLine($"{DateTime.Now:HH:mm:ss} " + T("メール送信に失敗: {0}", mailErr));
         History.Append(r);
         return r;
     }

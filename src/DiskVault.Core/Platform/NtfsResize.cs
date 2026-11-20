@@ -44,15 +44,15 @@ public static unsafe class NtfsResize
         int bps = ntfs.BytesPerSector, cs = ntfs.ClusterSize;
         long newTotalSectors = newLen / bps - 1;
         long newClusters = newTotalSectors * bps / cs;
-        if (newClusters >= ntfs.TotalClusters) throw new ArgumentException("縮小後のサイズが元以上です。");
+        if (newClusters >= ntfs.TotalClusters) throw new ArgumentException(T("縮小後のサイズが元以上です。"));
         if (ntfs.HasAttributeList(6) || ntfs.HasAttributeList(8))
-            throw new NotSupportedException("$Bitmap / $BadClus が分割されているボリュームは縮小できません。");
+            throw new NotSupportedException(T("$Bitmap / $BadClus が分割されているボリュームは縮小できません。"));
         if (ntfs.StreamRuns(8, "$Bad").Any(r => r.Lcn >= 0))
-            throw new NotSupportedException("不良クラスタが記録されているボリュームは縮小できません。");
+            throw new NotSupportedException(T("不良クラスタが記録されているボリュームは縮小できません。"));
         var bm = ntfs.ReadClusterBitmap();
         for (long c = newClusters; c < ntfs.TotalClusters; c++)
             if ((bm[c >> 3] & (1 << (int)(c & 7))) != 0)
-                throw new InvalidOperationException($"縮小後の範囲の外に使用中のデータがあります（最小 {Fmt.Size(MinSize(src))}）。");
+                throw new InvalidOperationException(T("縮小後の範囲の外に使用中のデータがあります（最小 {0}）。", Fmt.Size(MinSize(src))));
 
         // 1. $Bitmap：サイズは 8 バイト単位、ボリュームの外のビットは 1（使用中）にする決まり
         long newBmBytes = (newClusters + 63) / 64 * 8;
@@ -65,7 +65,7 @@ public static unsafe class NtfsResize
         // 2. $Bitmap の $DATA のサイズ
         var rec6 = ntfs.ReadRecordForEdit(NtfsVolume.BitmapFile);
         int a6 = NtfsVolume.FindAttribute(rec6, NtfsVolume.AttrData, "");
-        if (a6 < 0 || rec6[a6 + 8] == 0) throw new InvalidDataException("$Bitmap の $DATA が見つかりません。");
+        if (a6 < 0 || rec6[a6 + 8] == 0) throw new InvalidDataException(T("$Bitmap の $DATA が見つかりません。"));
         BinaryPrimitives.WriteInt64LittleEndian(rec6.AsSpan(a6 + 48), newBmBytes);
         BinaryPrimitives.WriteInt64LittleEndian(rec6.AsSpan(a6 + 56), newBmBytes);
         WriteRecord(ntfs, NtfsVolume.BitmapFile, rec6, dst);
@@ -79,7 +79,7 @@ public static unsafe class NtfsResize
             int runOff = BinaryPrimitives.ReadUInt16LittleEndian(a[32..]);
             int hdr = a[runOff];
             int lenBytes = hdr & 0x0F;
-            if ((hdr >> 4) != 0 || a[runOff + 1 + lenBytes] != 0) throw new NotSupportedException("$BadClus のランリストが想定外です。");
+            if ((hdr >> 4) != 0 || a[runOff + 1 + lenBytes] != 0) throw new NotSupportedException(T("$BadClus のランリストが想定外です。"));
             for (int i = 0; i < lenBytes; i++) a[runOff + 1 + i] = (byte)(newClusters >> (8 * i));
             BinaryPrimitives.WriteInt64LittleEndian(a[24..], newClusters - 1);          // 最終 VCN
             BinaryPrimitives.WriteInt64LittleEndian(a[40..], newClusters * cs);          // 割り当てサイズ
@@ -94,7 +94,7 @@ public static unsafe class NtfsResize
         BinaryPrimitives.WriteInt64LittleEndian(boot.AsSpan(0x28), newTotalSectors);
         dst.Write(0, boot);
         dst.Write(newTotalSectors * bps, boot);
-        log?.Invoke($"  NTFS を {Fmt.Size(ntfs.TotalClusters * cs)} → {Fmt.Size(newClusters * cs)} に縮小しました。");
+        log?.Invoke(T("  NTFS を {0} → {1} に縮小しました。", Fmt.Size(ntfs.TotalClusters * cs), Fmt.Size(newClusters * cs)));
     }
 
     static void WriteRecord(NtfsVolume ntfs, uint no, byte[] rec, IVolumeTarget dst)
@@ -114,7 +114,7 @@ public static unsafe class NtfsResize
             {
                 long sOff = (vcnStart + k) * cs;
                 if (sOff + cs <= from || sOff >= to) continue;
-                if (r.Lcn < 0) throw new InvalidDataException("$Bitmap がスパースです。");
+                if (r.Lcn < 0) throw new InvalidDataException(T("$Bitmap がスパースです。"));
                 Array.Clear(buf);
                 int n = (int)Math.Clamp(data.Length - sOff, 0, cs);
                 data.AsSpan((int)sOff, n).CopyTo(buf);
@@ -130,12 +130,12 @@ public static unsafe class NtfsResize
         using var h = Native.CreateFileW(volumeGuidPath.TrimEnd('\\'), Native.GENERIC_READ | Native.GENERIC_WRITE,
             Native.FILE_SHARE_READ | Native.FILE_SHARE_WRITE, 0, Native.OPEN_EXISTING, 0, 0);
         if (h.IsInvalid) throw Native.Error(volumeGuidPath, Marshal.GetLastPInvokeError());
-        long len = Native.GetLength(h) ?? throw new IOException("ボリュームのサイズを取得できません。");
+        long len = Native.GetLength(h) ?? throw new IOException(T("ボリュームのサイズを取得できません。"));
         int ss = Native.GetSectorSize(h) ?? 512;
         long sectors = len / ss;
         if (!Native.DeviceIoControl(h, FSCTL_EXTEND_VOLUME, &sectors, 8, null, 0, out _, 0))
-            throw Native.Error("ボリュームの拡張", Marshal.GetLastPInvokeError());
-        return $"  NTFS をパーティションいっぱい（{Fmt.Size(len)}）まで拡張しました。";
+            throw Native.Error(T("ボリュームの拡張"), Marshal.GetLastPInvokeError());
+        return T("  NTFS をパーティションいっぱい（{0}）まで拡張しました。", Fmt.Size(len));
     }
 
     /// <summary>復元したディスク上で、広げたパーティションの NTFS を拡張する（ボリュームが現れるのを待つ）。</summary>
@@ -150,9 +150,9 @@ public static unsafe class NtfsResize
                 v = VolumeInfo.Enumerate().FirstOrDefault(x => x.Disk == diskNumber && x.DiskOffset == p.Offset && x.FileSystem == "NTFS");
                 if (v == null) Thread.Sleep(1000);
             }
-            if (v == null) { log.Add($"  パーティション {p.Number}: ボリュームが見つからないため NTFS を拡張できませんでした（ディスクの管理で拡張してください）。"); continue; }
-            try { log.Add($"  パーティション {p.Number}:" + Extend(v.GuidPath).TrimStart()); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { log.Add($"  パーティション {p.Number}: NTFS の拡張に失敗しました: {e.Message}"); }
+            if (v == null) { log.Add(T("  パーティション {0}: ボリュームが見つからないため NTFS を拡張できませんでした（ディスクの管理で拡張してください）。", p.Number)); continue; }
+            try { log.Add(T("  パーティション {0}:", p.Number) + Extend(v.GuidPath).TrimStart()); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { log.Add(T("  パーティション {0}: NTFS の拡張に失敗しました: {1}", p.Number, e.Message)); }
         }
         return log;
     }
@@ -214,7 +214,7 @@ public static class LayoutPlanner
     /// <summary>配置を確定して新しいパーティション構成を返す。収まらなければ InvalidOperationException。</summary>
     public static DiskRecord Build(DiskRecord src, List<PartitionPlan> plan, long targetSize)
     {
-        if (plan.Count(x => x.Fill) > 1) throw new InvalidOperationException("「残り全体」にできるのは 1 つだけです。");
+        if (plan.Count(x => x.Fill) > 1) throw new InvalidOperationException(T("「残り全体」にできるのは 1 つだけです。"));
         var ordered = plan.OrderBy(x => x.Source.Offset).ToList();
         long usableEnd = (targetSize - TailReserve) / Align * Align;
         long first = ordered.Count > 0 ? ordered[0].Source.Offset : Align;
@@ -237,15 +237,15 @@ public static class LayoutPlanner
         foreach (var x in ordered)
         {
             var s = x.Source;
-            if (x.GapBefore < 0) throw new InvalidOperationException($"パーティション {s.Number} の前の空きが負です。");
+            if (x.GapBefore < 0) throw new InvalidOperationException(T("パーティション {0} の前の空きが負です。", s.Number));
             off += Up(x.GapBefore);
             if (x.NewLength != s.Length)
             {
-                if (!x.Resizable) throw new InvalidOperationException($"パーティション {s.Number}（{s.Kind}）はサイズを変えられません。");
+                if (!x.Resizable) throw new InvalidOperationException(T("パーティション {0}（{1}）はサイズを変えられません。", s.Number, s.Kind));
                 if (x.NewLength < x.MinLength)
-                    throw new InvalidOperationException($"パーティション {s.Number} は {Fmt.Size(x.MinLength)} より小さくできません（使用中のデータがあるため）。");
+                    throw new InvalidOperationException(T("パーティション {0} は {1} より小さくできません（使用中のデータがあるため）。", s.Number, Fmt.Size(x.MinLength)));
             }
-            if (x.NewLength <= 0) throw new InvalidOperationException("復元先ディスクが小さすぎます。");
+            if (x.NewLength <= 0) throw new InvalidOperationException(T("復元先ディスクが小さすぎます。"));
             result.Partitions.Add(new PartitionRecord
             {
                 Number = s.Number, Offset = off, Length = x.NewLength, TypeGuid = s.TypeGuid, PartitionGuid = s.PartitionGuid,
@@ -254,9 +254,9 @@ public static class LayoutPlanner
             off = Up(off + x.NewLength);
         }
         if (result.Partitions.Count > 0 && result.Partitions[^1].Offset + result.Partitions[^1].Length > usableEnd)
-            throw new InvalidOperationException($"復元先ディスク（{Fmt.Size(targetSize)}）に収まりません。パーティションを小さくしてください。");
+            throw new InvalidOperationException(T("復元先ディスク（{0}）に収まりません。パーティションを小さくしてください。", Fmt.Size(targetSize)));
         if (src.Style == "MBR" && off > 2L * 1024 * 1024 * 1024 * 1024)
-            throw new InvalidOperationException("MBR ディスクは 2TB を超えて使えません。");
+            throw new InvalidOperationException(T("MBR ディスクは 2TB を超えて使えません。"));
         return result;
     }
 }

@@ -77,7 +77,7 @@ public sealed class NtfsVolume
     {
         var b = new byte[512];
         src.Read(0, b);
-        if (!b.AsSpan(3, 8).SequenceEqual("NTFS    "u8)) throw new InvalidDataException($"{src.Name} は NTFS ではありません。");
+        if (!b.AsSpan(3, 8).SequenceEqual("NTFS    "u8)) throw new InvalidDataException(T("{0} は NTFS ではありません。", src.Name));
         int bps = BinaryPrimitives.ReadUInt16LittleEndian(b.AsSpan(0x0B));
         int spcRaw = b[0x0D];
         int spc = spcRaw <= 0x80 ? spcRaw : 1 << (256 - spcRaw);
@@ -87,13 +87,13 @@ public sealed class NtfsVolume
         int Size(sbyte v) => v > 0 ? v * cs : 1 << -v;
         int rec = Size((sbyte)b[0x40]);
         int idx = Size((sbyte)b[0x44]);
-        if (bps < 256 || cs <= 0 || rec < 256 || rec > 65536) throw new InvalidDataException("NTFS ブートセクタが不正です。");
+        if (bps < 256 || cs <= 0 || rec < 256 || rec > 65536) throw new InvalidDataException(T("NTFS ブートセクタが不正です。"));
 
         // $MFT 自身のレコード 0 を読んでランを得る
         var r0 = new byte[rec];
         src.Read(mftLcn * cs, r0);
         var tmp = new NtfsVolume(src, bps, cs, totalSectors / spc, rec, idx, [new DataRun(mftLcn, Math.Max(1, (rec * 16 + cs - 1) / cs))]);
-        var attrs = tmp.ParseRecord(r0, 0) ?? throw new InvalidDataException("$MFT レコードが壊れています。");
+        var attrs = tmp.ParseRecord(r0, 0) ?? throw new InvalidDataException(T("$MFT レコードが壊れています。"));
         var runs = new List<DataRun>();
         foreach (var a in attrs.Where(a => a.Type == AttrData && a.Name == "").OrderBy(a => a.StartVcn)) runs.AddRange(a.Runs);
         var vol = new NtfsVolume(src, bps, cs, totalSectors / spc, rec, idx, runs);
@@ -263,8 +263,8 @@ public sealed class NtfsVolume
     /// <summary>レコードの全属性（属性リストがあれば拡張レコードの分も）を返す。</summary>
     public List<NtfsAttr> LoadAttributes(uint no)
     {
-        var raw = ReadRecordRaw(no) ?? throw new InvalidDataException($"MFT レコード {no} を読めません。");
-        var r = ParseRec(raw, no) ?? throw new InvalidDataException($"MFT レコード {no} が壊れています。");
+        var raw = ReadRecordRaw(no) ?? throw new InvalidDataException(T("MFT レコード {0} を読めません。", no));
+        var r = ParseRec(raw, no) ?? throw new InvalidDataException(T("MFT レコード {0} が壊れています。", no));
         var list = r.Attrs;
         var al = list.FirstOrDefault(a => a.Type == AttrList);
         if (al == null) return list;
@@ -296,7 +296,7 @@ public sealed class NtfsVolume
         var runs = new List<DataRun>();
         foreach (var a in pieces.OrderBy(a => a.StartVcn)) runs.AddRange(a.Runs);
         var size = first.RealSize;
-        if (size > 1L << 31) throw new InvalidDataException("属性が大きすぎます。");
+        if (size > 1L << 31) throw new InvalidDataException(T("属性が大きすぎます。"));
         var buf = new byte[size];
         ReadRuns(runs, 0, buf);
         if (first.InitSize < size) buf.AsSpan((int)Math.Max(0, first.InitSize)).Clear();
@@ -324,15 +324,15 @@ public sealed class NtfsVolume
             vcnStart += r.Clusters;
             if (off >= start && off + RecordSize <= end && r.Lcn >= 0) return r.Lcn * ClusterSize + (off - start);
         }
-        throw new InvalidDataException($"MFT レコード {no} の位置を特定できません。");
+        throw new InvalidDataException(T("MFT レコード {0} の位置を特定できません。", no));
     }
 
     /// <summary>fixup を外した MFT レコード（書き換えて WriteFixup してから書き戻す）。</summary>
     public byte[] ReadRecordForEdit(uint no)
     {
-        var raw = ReadRecordRaw(no) ?? throw new InvalidDataException($"MFT レコード {no} を読めません。");
+        var raw = ReadRecordRaw(no) ?? throw new InvalidDataException(T("MFT レコード {0} を読めません。", no));
         if (!raw.AsSpan(0, 4).SequenceEqual("FILE"u8) || !ApplyFixup(raw, BytesPerSector))
-            throw new InvalidDataException($"MFT レコード {no} が壊れています。");
+            throw new InvalidDataException(T("MFT レコード {0} が壊れています。", no));
         return raw;
     }
 
@@ -388,7 +388,7 @@ public sealed class NtfsVolume
     {
         var attrs = LoadAttributes(BitmapFile);
         var bm = ReadStream(attrs, AttrData, "");
-        if (bm.Length * 8L < TotalClusters) throw new InvalidDataException("$Bitmap がボリュームより小さいです。");
+        if (bm.Length * 8L < TotalClusters) throw new InvalidDataException(T("$Bitmap がボリュームより小さいです。"));
         return bm;
     }
 
@@ -407,7 +407,7 @@ public sealed class NtfsVolume
     {
         var attrs = LoadAttributes(record);
         var root = attrs.FirstOrDefault(a => a.Type == AttrIndexRoot && a.Name == "$I30")?.Value
-                   ?? throw new InvalidDataException($"レコード {record} はディレクトリではありません。");
+                   ?? throw new InvalidDataException(T("レコード {0} はディレクトリではありません。", record));
         var allocPieces = attrs.Where(a => a.Type == AttrIndexAlloc && a.Name == "$I30").OrderBy(a => a.StartVcn).ToList();
         var allocRuns = new List<DataRun>();
         foreach (var a in allocPieces) allocRuns.AddRange(a.Runs);
@@ -523,7 +523,7 @@ public sealed class NtfsVolume
             dest.Write(first.Value ?? []);
             return first.RealSize;
         }
-        if ((first.Flags & 0x4000) != 0) throw new NotSupportedException("EFS で暗号化されたファイルは取り出せません。");
+        if ((first.Flags & 0x4000) != 0) throw new NotSupportedException(T("EFS で暗号化されたファイルは取り出せません。"));
         var runs = new List<DataRun>();
         foreach (var a in pieces) runs.AddRange(a.Runs);
         long size = first.RealSize, init = Math.Min(first.InitSize, size);

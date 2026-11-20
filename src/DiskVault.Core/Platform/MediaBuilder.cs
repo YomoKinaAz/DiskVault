@@ -34,8 +34,8 @@ public static class MediaBuilder
     /// <summary>ADK と WinPE アドオンが入っているか。足りないものの説明（なければ null）。</summary>
     public static string? CheckAdk()
     {
-        if (!File.Exists(Dism) || !File.Exists(Oscdimg)) return "Windows ADK（展開ツール）がインストールされていません。";
-        if (!File.Exists(Path.Combine(PeRoot, "en-us", "winpe.wim"))) return "Windows ADK の WinPE アドオンがインストールされていません。";
+        if (!File.Exists(Dism) || !File.Exists(Oscdimg)) return T("Windows ADK（展開ツール）がインストールされていません。");
+        if (!File.Exists(Path.Combine(PeRoot, "en-us", "winpe.wim"))) return T("Windows ADK の WinPE アドオンがインストールされていません。");
         return null;
     }
 
@@ -71,9 +71,9 @@ public static class MediaBuilder
     /// <summary>ADK と WinPE アドオンをアンインストールする（アドオン → 本体の順）。管理者権限が必要。</summary>
     public static void UninstallAdk(Action<string> log, CancellationToken ct = default)
     {
-        if (!Native.IsAdmin()) throw new UnauthorizedAccessException("アンインストールには管理者権限が必要です。");
+        if (!Native.IsAdmin()) throw new UnauthorizedAccessException(T("アンインストールには管理者権限が必要です。"));
         var list = InstalledAdk();
-        if (list.Count == 0) throw new InvalidOperationException("アンインストールできる Windows ADK が見つかりません（Windows の「アプリ」から削除してください）。");
+        if (list.Count == 0) throw new InvalidOperationException(T("アンインストールできる Windows ADK が見つかりません（Windows の「アプリ」から削除してください）。"));
         // 作りかけの回復メディアの WIM がマウントされたままだと ADK のファイルが消せないので、先に片付ける
         var work = new MediaOptions().WorkDir;
         CleanupMount(Path.Combine(work, "mount"), log);
@@ -82,25 +82,25 @@ public static class MediaBuilder
         foreach (var p in list)
         {
             ct.ThrowIfCancellationRequested();
-            if (!File.Exists(p.Exe)) throw new FileNotFoundException($"{p.Name} のアンインストーラーがありません: {p.Exe}");
-            log($"{p.Name} {p.Version} をアンインストールしています…");
+            if (!File.Exists(p.Exe)) throw new FileNotFoundException(T("{0} のアンインストーラーがありません: {1}", p.Name, p.Exe));
+            log(T("{0} {1} をアンインストールしています…", p.Name, p.Version));
             using var proc = Process.Start(new ProcessStartInfo(p.Exe, "/uninstall /quiet /norestart") { UseShellExecute = false, CreateNoWindow = true })
-                             ?? throw new InvalidOperationException($"{p.Exe} を起動できません。");
+                             ?? throw new InvalidOperationException(T("{0} を起動できません。", p.Exe));
             proc.WaitForExit();
             // 3010 = 再起動が必要（成功）
             if (proc.ExitCode is not (0 or 3010))
-                throw new InvalidOperationException($"{p.Name} のアンインストールに失敗しました（終了コード {proc.ExitCode}）。");
-            log(proc.ExitCode == 3010 ? "完了しました（再起動が必要です）。" : "完了しました。");
+                throw new InvalidOperationException(T("{0} のアンインストールに失敗しました（終了コード {1}）。", p.Name, proc.ExitCode));
+            log(proc.ExitCode == 3010 ? T("完了しました（再起動が必要です）。") : T("完了しました。"));
         }
     }
 
     public static void Build(MediaOptions o, Action<string> log, CancellationToken ct = default)
     {
         if (CheckAdk() is { } missing) throw new InvalidOperationException(missing);
-        if (!Native.IsAdmin()) throw new UnauthorizedAccessException("回復メディアの作成には管理者権限が必要です。");
-        if (o.IsoPath == null && o.UsbDisk == null) throw new ArgumentException("ISO の保存先か USB メモリを指定してください。");
+        if (!Native.IsAdmin()) throw new UnauthorizedAccessException(T("回復メディアの作成には管理者権限が必要です。"));
+        if (o.IsoPath == null && o.UsbDisk == null) throw new ArgumentException(T("ISO の保存先か USB メモリを指定してください。"));
         if (!File.Exists(Path.Combine(o.AppDir, "DiskVault.exe")) || !File.Exists(Path.Combine(o.AppDir, "dvault.exe")))
-            throw new FileNotFoundException($"{o.AppDir} に DiskVault.exe / dvault.exe がありません。");
+            throw new FileNotFoundException(T("{0} に DiskVault.exe / dvault.exe がありません。", o.AppDir));
 
         var work = o.WorkDir;
         var media = Path.Combine(work, "media");
@@ -109,14 +109,14 @@ public static class MediaBuilder
         if (Directory.Exists(work)) Directory.Delete(work, true);
         Directory.CreateDirectory(mount);
 
-        log("WinPE をコピーしています…");
+        log(T("WinPE をコピーしています…"));
         CopyDir(Path.Combine(PeRoot, "Media"), media);
         Directory.CreateDirectory(Path.Combine(media, "sources"));
         var wim = Path.Combine(media, "sources", "boot.wim");
         File.Copy(Path.Combine(PeRoot, "en-us", "winpe.wim"), wim);
         File.SetAttributes(wim, FileAttributes.Normal);
 
-        log("boot.wim をマウントしています…");
+        log(T("boot.wim をマウントしています…"));
         Run(Dism, $"/Mount-Image /ImageFile:\"{wim}\" /Index:1 /MountDir:\"{mount}\"", log, ct);
         bool committed = false;
         try
@@ -126,13 +126,13 @@ public static class MediaBuilder
             foreach (var p in packages)
             {
                 ct.ThrowIfCancellationRequested();
-                log($"コンポーネント追加: {p}");
+                log(T("コンポーネント追加: {0}", p));
                 AddPackage(mount, Path.Combine(ocs, p + ".cab"), log, ct);
                 AddPackage(mount, Path.Combine(ocs, "en-us", p + "_en-us.cab"), log, ct);
             }
             if (o.Japanese)
             {
-                log("日本語環境を追加しています…");
+                log(T("日本語環境を追加しています…"));
                 AddPackage(mount, Path.Combine(ocs, "WinPE-FontSupport-JA-JP.cab"), log, ct);
                 AddPackage(mount, Path.Combine(ocs, "ja-jp", "lp.cab"), log, ct);
                 foreach (var p in packages) AddPackage(mount, Path.Combine(ocs, "ja-jp", p + "_ja-jp.cab"), log, ct);
@@ -145,12 +145,12 @@ public static class MediaBuilder
             var drivers = new List<string>();
             if (o.DriversFromThisPC)
             {
-                log("この PC のドライバを書き出しています…");
+                log(T("この PC のドライバを書き出しています…"));
                 var exp = Path.Combine(work, "drivers-all");
                 Directory.CreateDirectory(exp);
                 Run(Dism, $"/Online /Export-Driver /Destination:\"{exp}\"", log, ct, allowFail: true);
                 drivers.AddRange(Directory.EnumerateDirectories(exp).Where(d => Directory.EnumerateFiles(d, "*.inf").Any(IsBootCriticalInf)));
-                log($"  ネットワーク・ストレージ関係のドライバ {drivers.Count} 個を追加します。");
+                log(T("  ネットワーク・ストレージ関係のドライバ {0} 個を追加します。", drivers.Count));
             }
             if (!string.IsNullOrEmpty(o.ExtraDrivers) && Directory.Exists(o.ExtraDrivers)) drivers.Add(o.ExtraDrivers);
             foreach (var d in drivers)
@@ -159,13 +159,13 @@ public static class MediaBuilder
                 Run(Dism, $"/Image:\"{mount}\" /Add-Driver /Driver:\"{d}\" /Recurse", log, ct, allowFail: true);
             }
 
-            log("DiskVault を組み込んでいます…");
+            log(T("DiskVault を組み込んでいます…"));
             var appDst = Path.Combine(mount, "DiskVault");
             CopyDir(o.AppDir, appDst, skip: f => f.EndsWith("DiskVaultService.exe", StringComparison.OrdinalIgnoreCase)
                                                  || f.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase));
-            File.WriteAllText(Path.Combine(mount, "Windows", "System32", "startnet.cmd"), StartNet.ReplaceLineEndings("\r\n"), new UTF8Encoding(false));
+            File.WriteAllText(Path.Combine(mount, "Windows", "System32", "startnet.cmd"), StartNet(o.Japanese).ReplaceLineEndings("\r\n"), new UTF8Encoding(false));
 
-            log("変更を保存しています（数分かかります）…");
+            log(T("変更を保存しています（数分かかります）…"));
             Run(Dism, $"/Unmount-Image /MountDir:\"{mount}\" /Commit", log, ct);
             committed = true;
         }
@@ -174,7 +174,7 @@ public static class MediaBuilder
             if (!committed) Run(Dism, $"/Unmount-Image /MountDir:\"{mount}\" /Discard", log, CancellationToken.None, allowFail: true);
         }
         // boot.wim を詰め直して小さくする
-        log("イメージを最適化しています…");
+        log(T("イメージを最適化しています…"));
         var wim2 = wim + ".new";
         Run(Dism, $"/Export-Image /SourceImageFile:\"{wim}\" /SourceIndex:1 /DestinationImageFile:\"{wim2}\" /Compress:max", log, ct, allowFail: true);
         if (File.Exists(wim2)) { File.Delete(wim); File.Move(wim2, wim); }
@@ -182,7 +182,7 @@ public static class MediaBuilder
 
         if (o.IsoPath != null)
         {
-            log($"ISO を作成しています: {o.IsoPath}");
+            log(T("ISO を作成しています: {0}", o.IsoPath));
             var fw = Path.Combine(DeployTools, "Oscdimg");
             var efi = File.Exists(Path.Combine(fw, "efisys_noprompt.bin")) ? "efisys_noprompt.bin" : "efisys.bin";
             var bootdata = $"2#p0,e,b\"{Path.Combine(fw, "etfsboot.com")}\"#pEF,e,b\"{Path.Combine(fw, efi)}\"";
@@ -191,24 +191,41 @@ public static class MediaBuilder
             log($"ISO: {Fmt.Size(new FileInfo(o.IsoPath).Length)}");
         }
         if (o.UsbDisk is int disk) WriteUsb(disk, media, log, ct);
-        log("回復メディアを作成しました。");
+        log(T("回復メディアを作成しました。"));
         try { Directory.Delete(work, true); } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
     /// <summary>起動時に DiskVault の回復画面を開く。GUI が起動できなければ文字画面版を開く。</summary>
-    const string StartNet = """
-        @echo off
-        wpeinit
-        wpeutil DisableFirewall >nul 2>&1
-        chcp 65001 >nul
-        title DiskVault 回復環境
-        cd /d X:\DiskVault
-        start "" /wait X:\DiskVault\DiskVault.exe --recovery
-        if errorlevel 1 X:\DiskVault\dvault.exe recover
-        echo.
-        echo DiskVault: X:\DiskVault\DiskVault.exe --recovery （画面版） / X:\DiskVault\dvault.exe recover （文字版）
-        echo 再起動: wpeutil reboot   電源を切る: wpeutil shutdown
-        """;
+    /// 日本語フォントを入れなかったメディアでは英語で表示する（DISKVAULT_LANG）。
+    static string StartNet(bool japanese) => japanese
+        ? """
+          @echo off
+          wpeinit
+          wpeutil DisableFirewall >nul 2>&1
+          chcp 65001 >nul
+          set DISKVAULT_LANG=ja
+          title DiskVault 回復環境
+          cd /d X:\DiskVault
+          start "" /wait X:\DiskVault\DiskVault.exe --recovery
+          if errorlevel 1 X:\DiskVault\dvault.exe recover
+          echo.
+          echo DiskVault: X:\DiskVault\DiskVault.exe --recovery （画面版） / X:\DiskVault\dvault.exe recover （文字版）
+          echo 再起動: wpeutil reboot   電源を切る: wpeutil shutdown
+          """
+        : """
+          @echo off
+          wpeinit
+          wpeutil DisableFirewall >nul 2>&1
+          chcp 65001 >nul
+          set DISKVAULT_LANG=en
+          title DiskVault recovery environment
+          cd /d X:\DiskVault
+          start "" /wait X:\DiskVault\DiskVault.exe --recovery
+          if errorlevel 1 X:\DiskVault\dvault.exe recover
+          echo.
+          echo DiskVault: X:\DiskVault\DiskVault.exe --recovery (GUI) / X:\DiskVault\dvault.exe recover (text mode)
+          echo Restart: wpeutil reboot   Shut down: wpeutil shutdown
+          """;
 
     static bool IsBootCriticalInf(string inf)
     {
@@ -229,7 +246,7 @@ public static class MediaBuilder
 
     static void AddPackage(string mount, string cab, Action<string> log, CancellationToken ct)
     {
-        if (!File.Exists(cab)) { log($"  （{Path.GetFileName(cab)} がないので省略）"); return; }
+        if (!File.Exists(cab)) { log(T("  （{0} がないので省略）", Path.GetFileName(cab))); return; }
         Run(Dism, $"/Image:\"{mount}\" /Add-Package /PackagePath:\"{cab}\"", log, ct);
     }
 
@@ -244,8 +261,8 @@ public static class MediaBuilder
     static void WriteUsb(int disk, string media, Action<string> log, CancellationToken ct)
     {
         var vols = VolumeInfo.Enumerate();
-        if (vols.Any(v => v.Disk == disk && v.IsSystem)) throw new InvalidOperationException("システムディスクには書き込めません。");
-        log($"USB メモリ（ディスク {disk}）を初期化しています…");
+        if (vols.Any(v => v.Disk == disk && v.IsSystem)) throw new InvalidOperationException(T("システムディスクには書き込めません。"));
+        log(T("USB メモリ（ディスク {0}）を初期化しています…", disk));
         // 32GB を超える USB でも FAT32 で作れるよう、パーティションは 32GB までにする
         var ps = $$"""
             $ErrorActionPreference = 'Stop'
@@ -260,10 +277,10 @@ public static class MediaBuilder
             (Get-Partition -DiskNumber {{disk}} -PartitionNumber $p.PartitionNumber).DriveLetter
             """;
         var letter = RunPowerShell(ps, log, ct).Trim().Split('\n').Last().Trim();
-        if (letter.Length != 1) throw new IOException($"USB メモリのドライブ文字を取得できません（{letter}）。");
-        log($"ファイルをコピーしています（{letter}:）…");
+        if (letter.Length != 1) throw new IOException(T("USB メモリのドライブ文字を取得できません（{0}）。", letter));
+        log(T("ファイルをコピーしています（{0}:）…", letter));
         CopyDir(media, letter + ":\\");
-        log($"USB メモリ（{letter}:）に書き込みました。");
+        log(T("USB メモリ（{0}:）に書き込みました。", letter));
     }
 
     static string RunPowerShell(string script, Action<string> log, CancellationToken ct)
@@ -301,9 +318,9 @@ public static class MediaBuilder
         if (p.ExitCode != 0 && !allowFail)
         {
             var tail = string.Join("\n", output.Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).TakeLast(8));
-            throw new IOException($"{Path.GetFileName(exe)} が失敗しました（{p.ExitCode}）: {tail}");
+            throw new IOException(T("{0} が失敗しました（{1}）: {2}", Path.GetFileName(exe), p.ExitCode, tail));
         }
-        if (p.ExitCode != 0) log($"  （{Path.GetFileName(exe)} 終了コード {p.ExitCode}、続行）");
+        if (p.ExitCode != 0) log(T("  （{0} 終了コード {1}、続行）", Path.GetFileName(exe), p.ExitCode));
         return output;
     }
 

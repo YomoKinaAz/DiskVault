@@ -11,6 +11,17 @@ public sealed class AppConfig
     public List<JobConfig> Jobs { get; set; } = [];
     public MailConfig Mail { get; set; } = new();
     public int HistoryKeepDays { get; set; } = 400;
+    /// <summary>表示言語 "auto"（Windows に合わせる）/ "ja" / "en"。GUI・CLI・サービスのログとメールに使う。</summary>
+    public string Language { get; set; } = "auto";
+
+    /// <summary>設定の表示言語を Loc に反映する（設定が読めなければ Windows の言語）。</summary>
+    public static void ApplyLanguage()
+    {
+        string? lang = null;
+        try { lang = Load().Language; }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { }
+        Loc.Set(lang);
+    }
 
     /// <summary>データフォルダ。テスト時は環境変数 DISKVAULT_HOME で差し替える。</summary>
     public static string Dir
@@ -65,7 +76,7 @@ public sealed class AppConfig
 public sealed class JobConfig
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N")[..12];
-    public string Name { get; set; } = "バックアップ";
+    public string Name { get; set; } = T("バックアップ");
     public bool Enabled { get; set; } = true;
     /// <summary>"system"（ベアメタル復元用にシステムディスク全体）、"C:"、"\\?\Volume{..}\" など。</summary>
     public List<string> Sources { get; set; } = ["system"];
@@ -137,7 +148,7 @@ public static class Secret
     {
         if (string.IsNullOrEmpty(enc)) return null;
         try { return Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(enc), Entropy, DataProtectionScope.LocalMachine)); }
-        catch (CryptographicException) { throw new UnauthorizedAccessException("保存されたパスワードを復号できません（別の PC で作った設定の可能性があります）。設定し直してください。"); }
+        catch (CryptographicException) { throw new UnauthorizedAccessException(T("保存されたパスワードを復号できません（別の PC で作った設定の可能性があります）。設定し直してください。")); }
     }
 }
 

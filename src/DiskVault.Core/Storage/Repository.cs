@@ -62,9 +62,9 @@ public sealed class Repository : IDisposable
 
     public static Repository Create(string root, string? password, int blockSize = 256 * 1024, int level = 3)
     {
-        if (Exists(root)) throw new IOException($"{root} には既にリポジトリがあります。");
+        if (Exists(root)) throw new IOException(T("{0} には既にリポジトリがあります。", root));
         if (blockSize < 4096 || (blockSize & (blockSize - 1)) != 0 || blockSize > 16 << 20)
-            throw new ArgumentException("ブロックサイズは 4KiB〜16MiB の 2 の累乗にしてください。");
+            throw new ArgumentException(T("ブロックサイズは 4KiB〜16MiB の 2 の累乗にしてください。"));
         Directory.CreateDirectory(root);
         var cfg = new RepoConfig { BlockSize = blockSize, CompressionLevel = level };
         byte[]? enc = null, idk = null;
@@ -92,14 +92,14 @@ public sealed class Repository : IDisposable
     public static Repository Open(string root, string? password)
     {
         var path = Path.Combine(root, "repo.json");
-        if (!File.Exists(path)) throw new FileNotFoundException($"{root} はバックアップ先（リポジトリ）ではありません。", path);
+        if (!File.Exists(path)) throw new FileNotFoundException(T("{0} はバックアップ先（リポジトリ）ではありません。", root), path);
         var cfg = JsonSerializer.Deserialize<RepoConfig>(File.ReadAllBytes(path), Json)
-                  ?? throw new InvalidDataException("repo.json を読めません。");
-        if (cfg.Format != 1) throw new InvalidDataException($"未対応のリポジトリ形式 {cfg.Format}。");
+                  ?? throw new InvalidDataException(T("repo.json を読めません。"));
+        if (cfg.Format != 1) throw new InvalidDataException(T("未対応のリポジトリ形式 {0}。", cfg.Format));
         byte[]? enc = null, idk = null;
         if (cfg.Encryption is { } e)
         {
-            if (string.IsNullOrEmpty(password)) throw new UnauthorizedAccessException("このバックアップは暗号化されています。パスワードを指定してください。");
+            if (string.IsNullOrEmpty(password)) throw new UnauthorizedAccessException(T("このバックアップは暗号化されています。パスワードを指定してください。"));
             var kek = Rfc2898DeriveBytes.Pbkdf2(password, Convert.FromBase64String(e.Salt), e.Iterations, HashAlgorithmName.SHA256, 32);
             var w = Convert.FromBase64String(e.WrappedKey);
             var master = new byte[64];
@@ -108,7 +108,7 @@ public sealed class Repository : IDisposable
                 using var gcm = new AesGcm(kek, 16);
                 gcm.Decrypt(w.AsSpan(0, 12), w.AsSpan(12, 64), w.AsSpan(76, 16), master);
             }
-            catch (CryptographicException) { throw new UnauthorizedAccessException("パスワードが違います。"); }
+            catch (CryptographicException) { throw new UnauthorizedAccessException(T("パスワードが違います。")); }
             enc = master[..32];
             idk = master[32..];
         }
@@ -133,7 +133,7 @@ public sealed class Repository : IDisposable
         {
             string who = "";
             try { who = File.ReadAllText(p); } catch { }
-            throw new IOException($"このバックアップ先は別の処理が使用中です。{who}".Trim());
+            throw new IOException(T("このバックアップ先は別の処理が使用中です。{0}", who).Trim());
         }
         var info = System.Text.Encoding.UTF8.GetBytes($"({Environment.MachineName} pid {Environment.ProcessId} {DateTime.Now:yyyy-MM-dd HH:mm})");
         _lock.SetLength(0);
@@ -174,10 +174,10 @@ public sealed class Repository : IDisposable
     public RecoveryPoint GetPoint(string id)
     {
         var all = ListPoints();
-        if (id == "latest") return all.LastOrDefault() ?? throw new InvalidOperationException("復元ポイントがありません。");
+        if (id == "latest") return all.LastOrDefault() ?? throw new InvalidOperationException(T("復元ポイントがありません。"));
         return all.FirstOrDefault(p => p.Id == id)
                ?? all.FirstOrDefault(p => p.Id.StartsWith(id, StringComparison.Ordinal))
-               ?? throw new KeyNotFoundException($"復元ポイント {id} が見つかりません。");
+               ?? throw new KeyNotFoundException(T("復元ポイント {0} が見つかりません。", id));
     }
 
     public void SavePoint(RecoveryPoint p)

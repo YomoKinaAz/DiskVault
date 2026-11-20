@@ -17,6 +17,8 @@ public sealed class RecoveryPoint
     public string? Comment { get; set; }
     /// <summary>"writers"（VSS ライター連携＝アプリ整合）/ "crash"（クラッシュ整合）/ null（スナップショットなし）</summary>
     public string? Consistency { get; set; }
+    /// <summary>既存のシャドウコピーから取ったときの、そのシャドウコピーの作成時刻（データの時点）。通常は null。</summary>
+    public DateTime? SourceTime { get; set; }
     public List<VolumeRecord> Volumes { get; set; } = [];
     public List<DiskRecord> Disks { get; set; } = [];
     public PointStats Stats { get; set; } = new();
@@ -57,7 +59,7 @@ public sealed class VolumeRecord
     public bool IsBoot { get; set; }
     public long UnreadableBytes { get; set; }
 
-    public string Display => (Letter ?? (IsBoot ? "EFI" : "(文字なし)")) + (string.IsNullOrEmpty(Label) ? "" : $" [{Label}]") + $" {FileSystem}";
+    public string Display => (Letter ?? (IsBoot ? "EFI" : T("(文字なし)"))) + (string.IsNullOrEmpty(Label) ? "" : $" [{Label}]") + $" {FileSystem}";
 }
 
 public sealed class DiskRecord
@@ -97,12 +99,12 @@ public sealed class PartitionRecord
 
     public string Kind => TypeGuid?.ToLowerInvariant() switch
     {
-        EspType => "EFI システム",
-        MsrType => "MSR (予約)",
-        BasicDataType => "ベーシックデータ",
-        RecoveryType => "回復",
-        null => MbrType switch { 0x07 => "NTFS/exFAT", 0x0B or 0x0C => "FAT32", 0x27 => "回復", _ => $"種別 0x{MbrType:X2}" },
-        _ => "その他",
+        EspType => T("EFI システム"),
+        MsrType => T("MSR (予約)"),
+        BasicDataType => T("ベーシックデータ"),
+        RecoveryType => T("回復"),
+        null => MbrType switch { 0x07 => "NTFS/exFAT", 0x0B or 0x0C => "FAT32", 0x27 => T("回復"), _ => T("種別 0x{0:X2}", MbrType) },
+        _ => T("その他"),
     };
 }
 

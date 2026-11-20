@@ -31,7 +31,7 @@ public partial class ToolsPage : UserControl, IPage
 
     async void Driver_Click(object sender, RoutedEventArgs e)
     {
-        if (Dialogs.PickOpenFile(Window.GetWindow(this), "ドライバ（.inf）", ".inf") is { } f) await RunCapture("drvload", $"\"{f}\"");
+        if (Dialogs.PickOpenFile(Window.GetWindow(this), T("ドライバ（.inf）"), ".inf") is { } f) await RunCapture("drvload", $"\"{f}\"");
     }
 
     void Cmd_Click(object sender, RoutedEventArgs e) => Process.Start(new ProcessStartInfo("cmd.exe") { UseShellExecute = true });
@@ -39,13 +39,13 @@ public partial class ToolsPage : UserControl, IPage
 
     void Reboot_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show("再起動しますか？", "再起動", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+        if (MessageBox.Show(T("再起動しますか？"), T("再起動"), MessageBoxButton.YesNo) == MessageBoxResult.Yes)
             Process.Start(new ProcessStartInfo("wpeutil", "reboot") { UseShellExecute = false, CreateNoWindow = true });
     }
 
     void Shutdown_Click(object sender, RoutedEventArgs e)
     {
-        if (MessageBox.Show("電源を切りますか？", "電源", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+        if (MessageBox.Show(T("電源を切りますか？"), T("電源"), MessageBoxButton.YesNo) == MessageBoxResult.Yes)
             Process.Start(new ProcessStartInfo("wpeutil", "shutdown") { UseShellExecute = false, CreateNoWindow = true });
     }
 }

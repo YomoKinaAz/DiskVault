@@ -13,6 +13,8 @@ public sealed class IpcRequest
     public string Cmd { get; set; } = "";
     public string? JobId { get; set; }
     public PointKind? Kind { get; set; }
+    /// <summary>run: 既存のシャドウコピーの ID（そのボリュームはシャドウコピーから読む）。</summary>
+    public List<string>? Shadows { get; set; }
 }
 
 public sealed class IpcResponse
@@ -80,14 +82,14 @@ public static class Ipc
             case "ping": return new IpcResponse { Ok = true, Version = version };
             case "status": return new IpcResponse { Ok = true, Jobs = s.Status(), Version = version };
             case "run":
-                s.Enqueue(req.JobId ?? throw new ArgumentException("JobId がありません。"), req.Kind ?? PointKind.Incremental);
+                s.Enqueue(req.JobId ?? throw new ArgumentException(T("JobId がありません。")), req.Kind ?? PointKind.Incremental, shadows: req.Shadows);
                 return new IpcResponse { Ok = true };
             case "cancel":
                 return new IpcResponse { Ok = s.Cancel(req.JobId ?? "") , Error = null };
             case "reload":
                 s.ReloadConfig();
                 return new IpcResponse { Ok = true };
-            default: throw new ArgumentException($"不明なコマンド {req.Cmd}");
+            default: throw new ArgumentException(T("不明なコマンド {0}", req.Cmd));
         }
     }
 

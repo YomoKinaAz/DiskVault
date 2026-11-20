@@ -35,12 +35,12 @@ public partial class FileBrowserWindow : Window
     public FileBrowserWindow(Repository repo, RecoveryPoint p, VolumeRecord v)
     {
         InitializeComponent();
-        Header.Text = $"{p.Time.ToLocalTime():yyyy/MM/dd HH:mm} の {v.Display.Trim()}";
+        Header.Text = T("{0:yyyy/MM/dd HH:mm} の {1}", p.Time.ToLocalTime(), v.Display.Trim());
         _src = new PointVolumeSource(repo, p, v.Index);
         try { _ntfs = NtfsVolume.Open(_src); }
         catch (InvalidDataException e)
         {
-            MessageBox.Show(e.Message, "開けません");
+            MessageBox.Show(e.Message, T("開けません"));
             Loaded += (_, _) => Close();
             return;
         }
@@ -91,7 +91,7 @@ public partial class FileBrowserWindow : Window
         _cur = dir;
         _curPath = path;
         PathBox.Text = path;
-        Status.Text = "読み込み中…";
+        Status.Text = T("読み込み中…");
         try
         {
             var rows = await Task.Run(() =>
@@ -100,7 +100,7 @@ public partial class FileBrowserWindow : Window
                 lock (_io) return list.Select(c => new FileRow(c, c.IsDirectory ? 0 : _ntfs!.FileInfo(c.Record).Size)).ToList();
             });
             Files.ItemsSource = rows;
-            Status.Text = $"{rows.Count(r => r.Entry.IsDirectory)} フォルダ、{rows.Count(r => !r.Entry.IsDirectory)} ファイル";
+            Status.Text = T("{0} フォルダ、{1} ファイル", rows.Count(r => r.Entry.IsDirectory), rows.Count(r => !r.Entry.IsDirectory));
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException)
         {
@@ -136,12 +136,12 @@ public partial class FileBrowserWindow : Window
             var sel = Files.SelectedItems.OfType<FileRow>().Select(r => r.Entry).ToList();
             targets = sel.Count > 0 ? sel : [_cur];
         }
-        var outDir = Dialogs.PickFolder(this, "復元先のフォルダ");
+        var outDir = Dialogs.PickFolder(this, T("復元先のフォルダ"));
         if (outDir == null) return;
         RestoreButton.IsEnabled = false;
         _cts = new CancellationTokenSource();
         var errors = new List<string>();
-        var prog = new Progress<(int Files, long Bytes, string Current)>(x => Status.Text = $"{x.Files} ファイル（{Fmt.Size(x.Bytes)}）  {x.Current}");
+        var prog = new Progress<(int Files, long Bytes, string Current)>(x => Status.Text = T("{0} ファイル（{1}）", x.Files, Fmt.Size(x.Bytes)) + "  " + x.Current);
         int files = 0;
         long bytes = 0;
         try
@@ -156,12 +156,12 @@ public partial class FileBrowserWindow : Window
                     bytes += r.Bytes;
                 }
             });
-            Status.Text = $"{files} ファイル（{Fmt.Size(bytes)}）を {outDir} に復元しました。";
-            var msg = $"{files} ファイル（{Fmt.Size(bytes)}）を復元しました。\n{outDir}";
-            if (errors.Count > 0) msg += $"\n\n{errors.Count} 件のエラー:\n" + string.Join("\n", errors.Take(10));
-            MessageBox.Show(msg, "復元", MessageBoxButton.OK, errors.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+            Status.Text = T("{0} ファイル（{1}）を {2} に復元しました。", files, Fmt.Size(bytes), outDir);
+            var msg = T("{0} ファイル（{1}）を復元しました。", files, Fmt.Size(bytes)) + "\n" + outDir;
+            if (errors.Count > 0) msg += "\n\n" + T("{0} 件のエラー:", errors.Count) + "\n" + string.Join("\n", errors.Take(10));
+            MessageBox.Show(msg, T("復元"), MessageBoxButton.OK, errors.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
         }
-        catch (OperationCanceledException) { Status.Text = "中止しました。"; }
+        catch (OperationCanceledException) { Status.Text = T("中止しました。"); }
         finally { RestoreButton.IsEnabled = true; }
     }
 

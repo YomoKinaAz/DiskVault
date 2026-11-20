@@ -24,7 +24,7 @@ public sealed class JobState
 public sealed class Scheduler : IDisposable
 {
     readonly object _lock = new();
-    readonly Queue<(string Id, PointKind Kind, string Trigger)> _queue = new();
+    readonly Queue<(string Id, PointKind Kind, string Trigger, IReadOnlyList<string>? Shadows)> _queue = new();
     readonly Dictionary<string, DateTime> _evaluated;
     readonly Dictionary<string, JobResult> _last = [];
     readonly CancellationTokenSource _stop = new();
@@ -57,7 +57,7 @@ public sealed class Scheduler : IDisposable
         try
         {
             int n = Platform.VssSnapshot.CleanupStale();
-            if (n > 0) Log?.Invoke($"前回残ったスナップショットを {n} 個削除しました。");
+            if (n > 0) Log?.Invoke(T("前回残ったスナップショットを {0} 個削除しました。", n));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Management.ManagementException) { }
         _thread = new Thread(Loop) { IsBackground = true, Name = "DiskVault.Scheduler" };
@@ -80,17 +80,18 @@ public sealed class Scheduler : IDisposable
         {
             _cfg = AppConfig.Load();
             _cfgTime = File.Exists(AppConfig.FilePath) ? File.GetLastWriteTimeUtc(AppConfig.FilePath) : default;
+            Loc.Set(_cfg.Language); // ログ・メールの言語も設定に合わせる
         }
         _wake.Set();
     }
 
-    public void Enqueue(string id, PointKind kind, string trigger = "manual")
+    public void Enqueue(string id, PointKind kind, string trigger = "manual", IReadOnlyList<string>? shadows = null)
     {
         lock (_lock)
         {
-            if (_cfg.Job(id) == null) throw new KeyNotFoundException($"ジョブ {id} がありません。");
-            if (_runningId == id || _queue.Any(q => q.Id == id)) throw new InvalidOperationException("このジョブは既に実行中または待機中です。");
-            _queue.Enqueue((id, kind, trigger));
+            if (_cfg.Job(id) == null) throw new KeyNotFoundException(T("ジョブ {0} がありません。", id));
+            if (_runningId == id || _queue.Any(q => q.Id == id)) throw new InvalidOperationException(T("このジョブは既に実行中または待機中です。"));
+            _queue.Enqueue((id, kind, trigger, shadows));
         }
         _wake.Set();
     }
@@ -151,7 +152,7 @@ public sealed class Scheduler : IDisposable
             }
             catch (Exception e)
             {
-                Log?.Invoke($"スケジューラーのエラー: {e}");
+                Log?.Invoke(T("スケジューラーのエラー: {0}", e));
             }
             _wake.WaitOne(TickInterval);
         }
@@ -188,13 +189,13 @@ public sealed class Scheduler : IDisposable
                 bool missed = now - lastOcc.When > TimeSpan.FromMinutes(15);
                 if (missed && !j.Schedule.RunMissed)
                 {
-                    Log?.Invoke($"{j.Name}: 予定 {lastOcc.When:MM/dd HH:mm} を過ぎていたため実行しません（取りこぼし実行がオフ）。");
+                    Log?.Invoke(T("{0}: 予定 {1:MM/dd HH:mm} を過ぎていたため実行しません（取りこぼし実行がオフ）。", j.Name, lastOcc.When));
                     continue;
                 }
                 if (_runningId == j.Id || _queue.Any(q => q.Id == j.Id)) continue;
                 var kind = occ.Any(o => o.Kind == PointKind.Full) ? PointKind.Full : PointKind.Incremental;
-                _queue.Enqueue((j.Id, kind, "schedule"));
-                Log?.Invoke($"{j.Name}: {(missed ? "取りこぼした予定" : "予定")} {lastOcc.When:MM/dd HH:mm} の{(kind == PointKind.Full ? "フル" : "増分")}バックアップを開始します。");
+                _queue.Enqueue((j.Id, kind, "schedule", null));
+                Log?.Invoke(T("{0}: {1} {2:MM/dd HH:mm} の{3}バックアップを開始します。", j.Name, missed ? T("取りこぼした予定") : T("予定"), lastOcc.When, kind == PointKind.Full ? T("フル") : T("増分")));
             }
         }
         if (dirty) SaveState();
@@ -210,7 +211,7 @@ public sealed class Scheduler : IDisposable
     {
         while (!_stop.IsCancellationRequested)
         {
-            (string Id, PointKind Kind, string Trigger) item;
+            (string Id, PointKind Kind, string Trigger, IReadOnlyList<string>? Shadows) item;
             JobConfig? job;
             AppConfig cfg;
             lock (_lock)
@@ -222,12 +223,12 @@ public sealed class Scheduler : IDisposable
                 if (job == null) continue;
                 _runningId = job.Id;
                 _jobCts = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
-                _progress = new JobProgress { Phase = "準備中", Started = Clock(), Kind = item.Kind };
+                _progress = new JobProgress { Phase = T("準備中"), Started = Clock(), Kind = item.Kind };
             }
             JobResult r;
             try
             {
-                r = JobRunner.Run(cfg, job, item.Kind, item.Trigger, p => { lock (_lock) _progress = p; }, _jobCts.Token);
+                r = JobRunner.Run(cfg, job, item.Kind, item.Trigger, p => { lock (_lock) _progress = p; }, _jobCts.Token, item.Shadows);
             }
             finally
             {

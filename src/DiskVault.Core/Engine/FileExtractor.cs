@@ -24,7 +24,7 @@ public static class FileExtractor
                 Directory.CreateDirectory(dest);
                 List<NtfsEntry> children;
                 try { children = ntfs.ListDirectory(e.Record); }
-                catch (Exception ex) when (ex is InvalidDataException or IOException) { log($"読めないフォルダ: {dest}: {ex.Message}"); errors++; return; }
+                catch (Exception ex) when (ex is InvalidDataException or IOException) { log(T("読めないフォルダ: {0}: {1}", dest, ex.Message)); errors++; return; }
                 foreach (var c in children) One(c, Path.Combine(dest, Safe(c.Name)), depth + 1);
                 TrySetTimes(dest, e.Created, e.Modified, dir: true);
                 return;
@@ -44,7 +44,7 @@ public static class FileExtractor
             }
             catch (Exception ex) when (ex is InvalidDataException or IOException or NotSupportedException or UnauthorizedAccessException)
             {
-                log($"取り出せません: {dest}: {ex.Message}");
+                log(T("取り出せません: {0}: {1}", dest, ex.Message));
                 errors++;
             }
         }

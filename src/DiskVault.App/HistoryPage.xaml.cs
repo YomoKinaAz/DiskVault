@@ -11,12 +11,12 @@ public sealed class HistoryRow(JobResult r)
 {
     public JobResult R { get; } = r;
     public string StartText => R.Start.ToString("yyyy/MM/dd HH:mm:ss");
-    public string KindText => R.Kind == PointKind.Full ? "フル" : "増分";
-    public string TriggerText => R.Trigger == "schedule" ? "スケジュール" : "手動";
+    public string KindText => R.Kind == PointKind.Full ? T("フル") : T("増分");
+    public string TriggerText => R.Trigger == "schedule" ? T("スケジュール") : T("手動");
     public string DurationText => Fmt.Duration(R.End - R.Start);
     public string NewText => R.ReadBytes > 0 ? Fmt.Size(R.NewBytes) : "";
     public string StoredText => R.ReadBytes > 0 ? Fmt.Size(R.StoredBytes) : "";
-    public string Detail => R.Error ?? (R.Warnings.Count > 0 ? string.Join(" / ", R.Warnings) : R.PointId != null ? $"復元ポイント {R.PointId}" : "");
+    public string Detail => R.Error ?? (R.Warnings.Count > 0 ? string.Join(" / ", R.Warnings) : R.PointId != null ? T("復元ポイント {0}", R.PointId) : "");
     public Brush StatusBrush => (Brush)Application.Current.FindResource(R.Status switch { JobStatus.Success => "Ok", JobStatus.Warning => "Warn", _ => "Bad" });
 }
 
@@ -29,7 +29,7 @@ public partial class HistoryPage : UserControl, IPage
     void Load()
     {
         try { Grid.ItemsSource = History.Load(max: 1000).Select(r => new HistoryRow(r)).ToList(); }
-        catch (UnauthorizedAccessException) { Grid.ItemsSource = null; LogView.Text = "履歴を読めません（管理者として実行してください）。"; }
+        catch (UnauthorizedAccessException) { Grid.ItemsSource = null; LogView.Text = T("履歴を読めません（管理者として実行してください）。"); }
     }
 
     void Refresh_Click(object sender, RoutedEventArgs e) => Load();
@@ -41,7 +41,7 @@ public partial class HistoryPage : UserControl, IPage
         {
             LogView.Text = row.R.LogFile != null && File.Exists(row.R.LogFile)
                 ? File.ReadAllText(row.R.LogFile)
-                : "（ログファイルがありません）";
+                : T("（ログファイルがありません）");
             LogView.ScrollToEnd();
         }
         catch (IOException ex) { LogView.Text = ex.Message; }

@@ -69,7 +69,7 @@ public static class Maintenance
             var deleted = new List<string>();
             foreach (var p in points.Take(Math.Max(0, points.Count - keep)))
             {
-                log($"古い復元ポイントを削除: {p.Id}");
+                log(T("古い復元ポイントを削除: {0}", p.Id));
                 Directory.Delete(repo.PointDir(p.Id), true);
                 deleted.Add(p.Id);
             }
@@ -89,7 +89,7 @@ public static class Maintenance
             foreach (var d in Directory.EnumerateDirectories(repo.PointsDir))
                 if (!File.Exists(Path.Combine(d, "point.json")))
                 {
-                    log($"中断したバックアップの残りを削除: {Path.GetFileName(d)}");
+                    log(T("中断したバックアップの残りを削除: {0}", Path.GetFileName(d)));
                     Directory.Delete(d, true);
                 }
         int chains = 0, packs = 0, rewritten = 0;
@@ -102,7 +102,7 @@ public static class Maintenance
             if (users.Count == 0)
             {
                 long size = DirSize(dir);
-                log($"使われなくなったチェーンを削除: {chain}（{Fmt.Size(size)}）");
+                log(T("使われなくなったチェーンを削除: {0}（{1}）", chain, Fmt.Size(size)));
                 Directory.Delete(dir, true);
                 freed += size;
                 chains++;
@@ -119,7 +119,7 @@ public static class Maintenance
             using var store = repo.OpenChain(chain, forWrite: true);
             var r = store.Compact(live);
             if (r.DeletedPacks + r.RewrittenPacks > 0)
-                log($"チェーン {chain}: pack 削除 {r.DeletedPacks}、詰め直し {r.RewrittenPacks}（{Fmt.Size(r.FreedBytes)} 解放）");
+                log(T("チェーン {0}: pack 削除 {1}、詰め直し {2}（{3} 解放）", chain, r.DeletedPacks, r.RewrittenPacks, Fmt.Size(r.FreedBytes)));
             packs += r.DeletedPacks;
             rewritten += r.RewrittenPacks;
             freed += r.FreedBytes;

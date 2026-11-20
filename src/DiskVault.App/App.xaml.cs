@@ -32,9 +32,10 @@ public partial class App : Application
             }
         }
         if (Sys.IsAdmin) Jobs.AppConfig.SecureDir();
+        Jobs.AppConfig.ApplyLanguage();
         DispatcherUnhandledException += (_, ex) =>
         {
-            MessageBox.Show(ex.Exception.Message, "DiskVault - エラー", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(ex.Exception.Message, T("DiskVault - エラー"), MessageBoxButton.OK, MessageBoxImage.Error);
             ex.Handled = true;
         };
         new MainWindow().Show();

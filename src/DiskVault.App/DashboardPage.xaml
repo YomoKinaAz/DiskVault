@@ -1,14 +1,15 @@
 <UserControl x:Class="DiskVault.App.DashboardPage"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DiskVault.App">
     <DockPanel>
         <DockPanel DockPanel.Dock="Top">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
-                <TextBlock Text="サービス:" Style="{StaticResource Label}"/>
+                <TextBlock Text="{local:Tr 'サービス:'}" Style="{StaticResource Label}"/>
                 <TextBlock x:Name="SvcText" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,10,0"/>
                 <Button x:Name="SvcButton" Click="Svc_Click" Visibility="Collapsed" Margin="0"/>
             </StackPanel>
-            <TextBlock Text="ダッシュボード" Style="{StaticResource H1}"/>
+            <TextBlock Text="{local:Tr 'ダッシュボード'}" Style="{StaticResource H1}"/>
         </DockPanel>
         <Border x:Name="SvcBanner" DockPanel.Dock="Top" Background="#FDECEC" BorderBrush="#F2B8B5" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,0,12" Visibility="Collapsed">
             <TextBlock x:Name="SvcBannerText" TextWrapping="Wrap"/>
@@ -18,10 +19,10 @@
                 <StackPanel x:Name="Cards"/>
                 <Border x:Name="Empty" Style="{StaticResource Card}" Visibility="Collapsed">
                     <StackPanel>
-                        <TextBlock Text="バックアップ ジョブがまだありません。" FontSize="15" Margin="0,0,0,8"/>
+                        <TextBlock Text="{local:Tr 'バックアップ ジョブがまだありません。'}" FontSize="15" Margin="0,0,0,8"/>
                         <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,12"
-                                   Text="「バックアップ ジョブ」で、バックアップする範囲（システム全体／ドライブ）、保存先（NAS・USB ディスク）、スケジュールを設定してください。"/>
-                        <Button Content="ジョブを作成" Style="{StaticResource Primary}" HorizontalAlignment="Left" Click="NewJob_Click"/>
+                                   Text="{local:Tr '「バックアップ ジョブ」で、バックアップする範囲（システム全体／ドライブ）、保存先（NAS・USB ディスク）、スケジュールを設定してください。'}"/>
+                        <Button Content="{local:Tr 'ジョブを作成'}" Style="{StaticResource Primary}" HorizontalAlignment="Left" Click="NewJob_Click"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
