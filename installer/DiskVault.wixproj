@@ -1,0 +1,14 @@
+<Project Sdk="WixToolset.Sdk/6.0.2">
+  <!-- build.ps1 -Installer で作る。StageDir = dist（自己完結の GUI・CLI・サービス一式） -->
+  <PropertyGroup>
+    <OutputName>DiskVault-$(ProductVersion)-x64</OutputName>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <Cultures>ja-JP</Cultures>
+    <DefineConstants>StageDir=$(StageDir);ProductVersion=$(ProductVersion)</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.UI.wixext" Version="6.0.2" />
+    <PackageReference Include="WixToolset.Util.wixext" Version="6.0.2" />
+  </ItemGroup>
+</Project>

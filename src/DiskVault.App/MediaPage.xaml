@@ -1,0 +1,44 @@
+<UserControl x:Class="DiskVault.App.MediaPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="回復メディア" Style="{StaticResource H1}"/>
+        <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Foreground="{StaticResource Muted}" Margin="0,0,0,12"
+                   Text="ディスクが壊れた・Windows が起動しないときに、この USB メモリ（または ISO）から起動して、バックアップからディスク全体を復元します。Windows ADK と WinPE アドオンが必要です。"/>
+        <Border DockPanel.Dock="Top" Style="{StaticResource Card}">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Windows ADK:" Style="{StaticResource Label}"/>
+                    <TextBlock x:Name="AdkState" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                    <Button x:Name="AdkButton" Content="インストール（winget）" Click="InstallAdk_Click" Margin="16,0,0,0" Visibility="Collapsed"/>
+                    <Button x:Name="UninstallAdkButton" Content="アンインストール" Click="UninstallAdk_Click" Margin="8,0,0,0" Visibility="Collapsed"
+                            ToolTip="Windows ADK と WinPE アドオンを削除します（回復メディアを作り終えたら不要です。数 GB 空きます）"/>
+                </StackPanel>
+                <TextBlock Text="出力先" Style="{StaticResource H2}"/>
+                <RadioButton x:Name="IsoRadio" GroupName="out" IsChecked="True" Margin="0,2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="ISO ファイル:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox x:Name="IsoPath" Width="420"/>
+                        <Button Content="参照…" Click="BrowseIso_Click" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton x:Name="UsbRadio" GroupName="out" Margin="0,8,0,2">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="USB メモリ（中身はすべて消えます）:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="UsbBox" Width="330"/>
+                        <Button Content="再検出" Click="RefreshUsb_Click" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </RadioButton>
+                <TextBlock Text="オプション" Style="{StaticResource H2}"/>
+                <CheckBox x:Name="DriversBox" IsChecked="True" Content="この PC のネットワーク・ストレージ用ドライバを入れる（この PC の復元で NAS やディスクが見えないのを防ぐ）"/>
+                <CheckBox x:Name="JapaneseBox" IsChecked="True" Content="日本語で表示する（日本語フォント・ロケール）"/>
+                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
+                    <Button x:Name="BuildButton" Content="作成" Style="{StaticResource Primary}" Click="Build_Click"/>
+                    <Button x:Name="CancelButton" Content="中止" Click="Cancel_Click" IsEnabled="False"/>
+                    <TextBlock x:Name="BuildState" VerticalAlignment="Center" Foreground="{StaticResource Muted}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+        <TextBox x:Name="Log" IsReadOnly="True" FontFamily="Consolas, BIZ UDGothic, MS Gothic" FontSize="12" VerticalScrollBarVisibility="Auto" Background="White"/>
+    </DockPanel>
+</UserControl>

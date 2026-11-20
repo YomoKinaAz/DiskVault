@@ -1,0 +1,77 @@
+<UserControl x:Class="DiskVault.App.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="設定" Style="{StaticResource H1}"/>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="760" HorizontalAlignment="Left">
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="メール通知" Style="{StaticResource H2}" Margin="0,0,0,8"/>
+                        <CheckBox x:Name="MailOn" Content="バックアップの結果をメールで知らせる"/>
+                        <Grid Margin="0,6,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="120"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="SMTP サーバー" Style="{StaticResource Label}"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,3">
+                                <TextBox x:Name="Host" Width="260"/>
+                                <TextBlock Text="ポート" Style="{StaticResource Label}" Margin="12,0,8,0"/>
+                                <TextBox x:Name="Port" Width="60"/>
+                                <ComboBox x:Name="Security" Width="120" Margin="12,0,0,0">
+                                    <ComboBoxItem Tag="starttls">STARTTLS</ComboBoxItem>
+                                    <ComboBoxItem Tag="ssl">SSL/TLS</ComboBoxItem>
+                                    <ComboBoxItem Tag="none">暗号化なし</ComboBoxItem>
+                                </ComboBox>
+                            </StackPanel>
+                            <TextBlock Grid.Row="1" Text="ユーザー" Style="{StaticResource Label}"/>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,3">
+                                <TextBox x:Name="User" Width="260"/>
+                                <TextBlock Text="パスワード" Style="{StaticResource Label}" Margin="12,0,8,0"/>
+                                <PasswordBox x:Name="Pass" Width="180"/>
+                            </StackPanel>
+                            <TextBlock Grid.Row="2" Text="差出人" Style="{StaticResource Label}"/>
+                            <TextBox x:Name="From" Grid.Row="2" Grid.Column="1" Width="260" HorizontalAlignment="Left" Margin="0,3"/>
+                            <TextBlock Grid.Row="3" Text="宛先" Style="{StaticResource Label}"/>
+                            <TextBox x:Name="To" Grid.Row="3" Grid.Column="1" Margin="0,3" ToolTip="複数あるときはカンマ区切り"/>
+                            <TextBlock Grid.Row="4" Text="送る条件" Style="{StaticResource Label}"/>
+                            <ComboBox x:Name="When" Grid.Row="4" Grid.Column="1" Width="260" HorizontalAlignment="Left" Margin="0,3">
+                                <ComboBoxItem Tag="always">毎回（成功も）</ComboBoxItem>
+                                <ComboBoxItem Tag="problems">警告・失敗のときだけ</ComboBoxItem>
+                            </ComboBox>
+                            <TextBlock Grid.Row="5" Text="件名の先頭" Style="{StaticResource Label}"/>
+                            <TextBox x:Name="Prefix" Grid.Row="5" Grid.Column="1" Width="260" HorizontalAlignment="Left" Margin="0,3"/>
+                            <TextBlock Grid.Row="6" Grid.Column="1" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,4,0,0" TextWrapping="Wrap"
+                                       Text="Gmail の場合: smtp.gmail.com・587・STARTTLS、パスワードには Google アカウントの「アプリ パスワード」を入れます。"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                            <Button Content="保存" Style="{StaticResource Primary}" Click="Save_Click"/>
+                            <Button x:Name="TestButton" Content="テストメールを送る" Click="Test_Click"/>
+                            <TextBlock x:Name="MailStatus" VerticalAlignment="Center" Foreground="{StaticResource Muted}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="サービス" Style="{StaticResource H2}" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="状態:" Style="{StaticResource Label}"/>
+                            <TextBlock x:Name="SvcState" VerticalAlignment="Center" FontWeight="SemiBold" Margin="0,0,16,0"/>
+                            <Button x:Name="SvcInstallButton" Content="登録・開始" Click="SvcInstall_Click"/>
+                            <Button x:Name="SvcUninstallButton" Content="登録解除" Click="SvcUninstall_Click"/>
+                        </StackPanel>
+                        <TextBlock Foreground="{StaticResource Muted}" FontSize="12" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Text="サービス「DiskVault」（LocalSystem）がスケジュールに従ってバックアップを実行します。この画面を閉じてもバックアップは動きます。"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                            <TextBlock Text="履歴とログを" Style="{StaticResource Label}"/>
+                            <TextBox x:Name="KeepDays" Width="50"/>
+                            <TextBlock Text="日間残す" Style="{StaticResource Label}" Margin="8,0"/>
+                        </StackPanel>
+                        <TextBlock x:Name="DataDir" Foreground="{StaticResource Muted}" FontSize="12" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

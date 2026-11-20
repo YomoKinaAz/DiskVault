@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DiskVault.App/DiskVault.App.csproj" />
+    <Project Path="src/DiskVault.Cli/DiskVault.Cli.csproj" />
+    <Project Path="src/DiskVault.Core/DiskVault.Core.csproj" />
+    <Project Path="src/DiskVault.Service/DiskVault.Service.csproj" />
+  </Folder>
+</Solution>

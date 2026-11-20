@@ -1,0 +1,13 @@
+# ビルド結果・作業用（リポジトリには入れない）
+bin/
+obj/
+dist/
+out/
+scratch/
+tools/
+.vs/
+*.user
+*.suo
+installer/app.ico.bak
+__pycache__/
+*.pyc

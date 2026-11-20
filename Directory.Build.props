@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <Version>1.0.1</Version>
+    <Company>DiskVault</Company>
+    <Product>DiskVault イメージバックアップ</Product>
+  </PropertyGroup>
+</Project>

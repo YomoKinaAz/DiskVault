@@ -1,0 +1,85 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="DiskVault イメージバックアップ" Manufacturer="DiskVault" Version="$(ProductVersion)"
+           UpgradeCode="3f6d2b9e-7c41-4a58-9d0e-5b1a8e2c4f73" Scope="perMachine" Language="1041" Codepage="932">
+
+    <MajorUpgrade DowngradeErrorMessage="より新しいバージョンの DiskVault がインストールされています。" />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="AppIcon.ico" SourceFile="$(StageDir)\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <Property Id="ARPCOMMENTS" Value="ディスクイメージのバックアップ（フル・増分・スケジュール・ベアメタル復元・メール通知）" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="DiskVault" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <ComponentGroup Id="Product" Directory="INSTALLFOLDER">
+      <Component Id="Service">
+        <File Id="ServiceExe" Source="$(StageDir)\DiskVaultService.exe" KeyPath="yes" />
+        <ServiceInstall Id="DiskVaultService" Name="DiskVault" DisplayName="DiskVault イメージバックアップ"
+                        Description="ディスクイメージのバックアップをスケジュール実行します。"
+                        Type="ownProcess" Start="auto" ErrorControl="normal" Account="LocalSystem">
+          <ServiceConfig DelayedAutoStart="yes" OnInstall="yes" OnReinstall="yes" />
+          <util:ServiceConfig FirstFailureActionType="restart" SecondFailureActionType="restart"
+                              ThirdFailureActionType="restart" RestartServiceDelayInSeconds="60" ResetPeriodInDays="1" />
+        </ServiceInstall>
+        <!-- 実行中のバックアップがあっても止めてから置き換える。アンインストールで削除 -->
+        <ServiceControl Id="DiskVaultStop" Name="DiskVault" Stop="both" Remove="uninstall" Wait="yes" />
+        <!-- 開始は ServiceControl ではなく下の StartDiskVault で行う。ServiceControl だと、ウイルス対策の検査などで
+             起動が 30 秒を超えた PC でエラー 1920（「システム サービスを開始する特権を…」）になり、インストール自体が止まる -->
+      </Component>
+
+      <Component Id="App">
+        <File Id="AppExe" Source="$(StageDir)\DiskVault.exe" KeyPath="yes">
+          <Shortcut Id="AppShortcut" Directory="ProgramMenuFolder" Name="DiskVault イメージバックアップ"
+                    Description="バックアップの設定・実行・復元" WorkingDirectory="INSTALLFOLDER" Advertise="yes" Icon="AppIcon.ico" />
+        </File>
+      </Component>
+
+      <!-- CLI（dvault.exe）を管理者のコマンドプロンプトから使えるように -->
+      <Component Id="PathEnv" Guid="b7f3c2d1-6a4e-4f0b-8c9d-2e1f5a7b3c90">
+        <Environment Id="PathEnv" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="yes" Permanent="no" />
+        <RegistryValue Root="HKLM" Key="Software\DiskVault" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+      </Component>
+
+      <!-- ランタイムと残りのファイル（回復メディアにもこの一式を入れる） -->
+      <Files Include="$(StageDir)\**">
+        <Exclude Files="$(StageDir)\DiskVaultService.exe" />
+        <Exclude Files="$(StageDir)\DiskVault.exe" />
+        <Exclude Files="$(StageDir)\*.msi" />
+      </Files>
+    </ComponentGroup>
+
+    <Feature Id="Main" Title="DiskVault" Level="1">
+      <ComponentGroupRef Id="Product" />
+    </Feature>
+
+    <!-- サービスの開始（失敗してもインストールは成功させる。止まっていれば DiskVault のダッシュボードから開始できる） -->
+    <SetProperty Id="StartDiskVault" Value="&quot;[System64Folder]sc.exe&quot; start DiskVault" Before="StartDiskVault" Sequence="execute" />
+    <CustomAction Id="StartDiskVault" DllEntry="WixQuietExec64" Execute="deferred" Impersonate="no" Return="ignore" BinaryRef="Wix4UtilCA_X64" />
+    <InstallExecuteSequence>
+      <Custom Action="StartDiskVault" After="StartServices" Condition="NOT (REMOVE=&quot;ALL&quot;)" />
+    </InstallExecuteSequence>
+
+    <!-- ===== UI ===== -->
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="DiskVault を起動する" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT"
+              Value="サービス「DiskVault」を登録しました（ダッシュボードで「実行中」になっているか確認してください）。DiskVault の「バックアップ ジョブ」でバックアップの範囲・保存先・スケジュールを設定し、「回復メディア」で USB メモリを作っておいてください。" />
+    <ui:WixUI Id="WixUI_InstallDir" />
+
+    <Property Id="WixShellExecTarget" Value="[#AppExe]" />
+    <CustomAction Id="LaunchApp" DllEntry="WixShellExec" Impersonate="yes" BinaryRef="Wix4UtilCA_X86" />
+    <UI>
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApp"
+               Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+    </UI>
+  </Package>
+</Wix>
+

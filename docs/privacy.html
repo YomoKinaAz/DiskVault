@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DiskVault プライバシーポリシー</title>
+<style>
+  :root { color-scheme: light dark; --fg: #1d2330; --muted: #5b6475; --line: #d8dde6; --bg: #ffffff; --accent: #1f5fae; }
+  @media (prefers-color-scheme: dark) { :root { --fg: #e6e9ef; --muted: #a3abba; --line: #343b48; --bg: #14171d; --accent: #7fb0ec; } }
+  html { background: var(--bg); }
+  body { font-family: "Yu Gothic UI", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif; color: var(--fg); background: var(--bg);
+         max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; line-height: 1.8; font-size: 15px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 32px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  ul { padding-left: 1.4em; }
+  li { margin: 4px 0; }
+  .lang { margin-top: 56px; padding-top: 24px; border-top: 2px solid var(--line); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>DiskVault プライバシーポリシー</h1>
+<div class="meta">発行者: YomoKinaAz ／ 制定日: 2026年11月12日 ／ <a href="#english">English</a></div>
+
+<p>DiskVault（以下「本アプリ」）は、Windows のディスクイメージをバックアップ・復元するアプリです。本ポリシーは、本アプリが扱う情報とその取り扱いを説明します。</p>
+
+<h2>1. 収集する情報</h2>
+<p><strong>本アプリは、利用者の個人情報や利用状況を発行者や第三者に送信しません。</strong>利用状況の統計（テレメトリ）、広告、利用者アカウント、発行者が運営するサーバーとの通信はありません。</p>
+
+<h2>2. PC 内に保存する情報</h2>
+<ul>
+  <li><strong>設定・履歴・ログ</strong>：バックアップ ジョブの設定、実行履歴、ログを、この PC の <code>%ProgramData%\DiskVault</code> に保存します。管理者と SYSTEM だけが読めるようにしています。</li>
+  <li><strong>パスワード</strong>：NAS・メールサーバー・暗号化のパスワードを保存する場合は、Windows のデータ保護機能（DPAPI）で暗号化して保存します。</li>
+  <li><strong>バックアップデータ</strong>：利用者が指定した保存先（この PC のドライブ、USB ディスク、NAS など）にだけ書き込みます。暗号化を選ぶと AES-256 で暗号化します。バックアップには、対象ディスク上のファイル（個人のファイルを含むことがあります）がそのまま含まれます。</li>
+</ul>
+
+<h2>3. 外部との通信（利用者が設定した場合のみ）</h2>
+<ul>
+  <li><strong>NAS（共有フォルダ）</strong>：保存先に共有フォルダを指定した場合、その機器にバックアップデータを書き込みます。</li>
+  <li><strong>メール通知</strong>：メール通知を有効にした場合、利用者が指定したメールサーバー（SMTP）を通じて、指定した宛先にバックアップ結果（ジョブ名、PC 名、日時、結果、エラー内容など）を送信します。</li>
+  <li><strong>Windows ADK のダウンロード</strong>：回復メディアの作成で「インストール」を選んだ場合、Windows の winget を使って Microsoft から Windows ADK をダウンロードします。この通信には Microsoft のプライバシーに関する声明が適用されます。</li>
+</ul>
+<p>これらの通信先は、すべて利用者が選んだ機器・サービス、または Microsoft です。発行者がその内容を受け取ることはありません。</p>
+
+<h2>4. 第三者への提供</h2>
+<p>発行者は利用者の情報を受け取らないため、第三者に提供・販売することはありません。Microsoft Store からのダウンロードや更新には、Microsoft のプライバシーに関する声明が適用されます。</p>
+
+<h2>5. 情報の削除</h2>
+<p>本アプリをアンインストールしたあと、<code>%ProgramData%\DiskVault</code> フォルダを削除すると、設定・履歴・ログが消えます。バックアップデータは保存先のフォルダを削除してください。</p>
+
+<h2>6. 子どもの利用</h2>
+<p>本アプリは子どもを対象としたものではなく、子どもの情報を意図して収集することはありません。</p>
+
+<h2>7. 本ポリシーの変更</h2>
+<p>本ポリシーを変更する場合は、このページを更新し、制定日を改めます。</p>
+
+<h2>8. お問い合わせ</h2>
+<p>GitHub の Issues（<a href="https://github.com/YomoKinaAz/DiskVault/issues">https://github.com/YomoKinaAz/DiskVault/issues</a>）からお問い合わせください。</p>
+
+<div class="lang" id="english">
+<h1>DiskVault Privacy Policy</h1>
+<div class="meta">Publisher: YomoKinaAz / Effective: November 12, 2026</div>
+
+<p>DiskVault (“the app”) backs up and restores Windows disk images. This policy explains what information the app handles and how.</p>
+
+<h2>1. Information we collect</h2>
+<p><strong>The app does not send any personal information or usage data to the publisher or to third parties.</strong> There is no telemetry, no advertising, no user account, and no communication with servers operated by the publisher.</p>
+
+<h2>2. Information stored on your PC</h2>
+<ul>
+  <li><strong>Settings, history and logs</strong> are stored on your PC in <code>%ProgramData%\DiskVault</code>, readable only by Administrators and SYSTEM.</li>
+  <li><strong>Passwords</strong> (NAS, mail server, backup encryption), if saved, are encrypted with the Windows Data Protection API (DPAPI).</li>
+  <li><strong>Backup data</strong> is written only to the destination you choose (a local drive, USB disk or NAS). If you enable encryption, it is encrypted with AES-256. Backups contain the files on the disks you back up, which may include personal files.</li>
+</ul>
+
+<h2>3. Network communication (only when you configure it)</h2>
+<ul>
+  <li><strong>NAS / network shares</strong>: backup data is written to the share you specify.</li>
+  <li><strong>E-mail notifications</strong>: if enabled, backup results (job name, PC name, time, status, error messages) are sent through the SMTP server you specify to the recipients you specify.</li>
+  <li><strong>Windows ADK download</strong>: if you choose to install it when creating recovery media, the Windows ADK is downloaded from Microsoft using winget, subject to the Microsoft Privacy Statement.</li>
+</ul>
+<p>All of these destinations are devices or services you choose, or Microsoft. The publisher never receives this data.</p>
+
+<h2>4. Sharing with third parties</h2>
+<p>The publisher does not receive your information and therefore does not share or sell it. Downloads and updates through the Microsoft Store are subject to the Microsoft Privacy Statement.</p>
+
+<h2>5. Deleting your information</h2>
+<p>After uninstalling the app, delete the <code>%ProgramData%\DiskVault</code> folder to remove settings, history and logs. Delete the backup folders at your destination to remove backup data.</p>
+
+<h2>6. Children</h2>
+<p>The app is not directed at children and does not knowingly collect information from children.</p>
+
+<h2>7. Changes to this policy</h2>
+<p>If this policy changes, this page will be updated with a new effective date.</p>
+
+<h2>8. Contact</h2>
+<p>Please open an issue on GitHub: <a href="https://github.com/YomoKinaAz/DiskVault/issues">https://github.com/YomoKinaAz/DiskVault/issues</a></p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Microsoft Store 版（MSIX）。{{...}} は make_msix.ps1 が置き換える -->
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+         xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+         xmlns:desktop6="http://schemas.microsoft.com/appx/manifest/desktop/windows10/6"
+         xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+         IgnorableNamespaces="uap uap3 desktop desktop6 rescap">
+
+  <Identity Name="{{IdentityName}}" Publisher="{{Publisher}}" Version="{{Version}}" ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>{{DisplayName}}</DisplayName>
+    <PublisherDisplayName>{{PublisherDisplayName}}</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <!-- 設定・履歴は %ProgramData%\DiskVault に置き、サービス（LocalSystem）と GUI で共有するので仮想化しない -->
+    <desktop6:FileSystemWriteVirtualization>disabled</desktop6:FileSystemWriteVirtualization>
+    <desktop6:RegistryWriteVirtualization>disabled</desktop6:RegistryWriteVirtualization>
+  </Properties>
+
+  <Dependencies>
+    <!-- パッケージ内サービスは Windows 10 2004（19041）以降 -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="ja-JP" />
+  </Resources>
+
+  <Applications>
+    <Application Id="DiskVault" Executable="DiskVault.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements DisplayName="{{DisplayName}}" Description="ディスクイメージのバックアップ（フル・増分・スケジュール・ベアメタル復元・メール通知）"
+                          BackgroundColor="transparent" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <!-- コマンドプロンプトから dvault で使えるように -->
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="dvault.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap3:AppExecutionAlias>
+            <desktop:ExecutionAlias Alias="dvault.exe" />
+          </uap3:AppExecutionAlias>
+        </uap3:Extension>
+        <!-- バックアップ サービス（スケジュール実行・VSS・ディスクの読み書きのため LocalSystem） -->
+        <desktop6:Extension Category="windows.service" Executable="DiskVaultService.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop6:Service Name="{{ServiceName}}" StartupType="auto" StartAccount="localSystem"{{ServiceArgs}} />
+        </desktop6:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <!-- GUI は復元・回復メディア作成でディスクを直接書くため、管理者に昇格する -->
+    <rescap:Capability Name="allowElevation" />
+    <rescap:Capability Name="packagedServices" />
+    <rescap:Capability Name="localSystemServices" />
+    <rescap:Capability Name="unvirtualizedResources" />
+  </Capabilities>
+</Package>
