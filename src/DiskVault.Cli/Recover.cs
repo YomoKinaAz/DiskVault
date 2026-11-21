@@ -40,7 +40,7 @@ static class Recover
                 case "2": Shell("ipconfig", ""); break;
                 case "3":
                     var inf = Ask(T(".inf ファイルのパス"));
-                    if (inf.Length > 0) Shell("drvload", $"\"{inf}\"");
+                    if (inf.Length > 0) { HardwareAdapt.RememberLoaded(inf); Shell("drvload", $"\"{inf}\""); }
                     break;
                 case "4": return 0;
                 case "5": Shell("wpeutil", "reboot"); return 0;
@@ -190,6 +190,8 @@ static class Recover
         Console.WriteLine();
         Console.WriteLine(T("ディスク {0}（{1}、{2}）の内容はすべて消去されます。", dn, target.Model, Fmt.Size(target.Size)));
         if (Ask(T("よろしければ YES と入力")) != "YES") { Console.WriteLine(T("中止しました。")); return; }
+        bool adapt = Ask(T("別の PC（元と違うハードウェア）に復元しますか？ y = ストレージのドライバなどを調整する [y/N]")).Equals("y", StringComparison.OrdinalIgnoreCase);
+        string? drv = adapt ? Ask(T("追加するドライバのフォルダ（なければ Enter）")) : null;
 
         var sw = Stopwatch.StartNew();
         List<PartitionRecord> grow;
@@ -203,6 +205,7 @@ static class Recover
         }
         foreach (var l in NtfsResize.ExtendOnDisk(dn, grow)) Console.WriteLine(l);
         Console.WriteLine(T("復元しました（{0}）。", Fmt.Duration(sw.Elapsed)));
+        if (adapt) foreach (var l in HardwareAdapt.RunOnDisk(dn, string.IsNullOrEmpty(drv) ? null : [drv])) Console.WriteLine(l);
         foreach (var l in BootFix.Run(dn, disk)) Console.WriteLine(l);
         Console.WriteLine(T("USB メモリを抜いて再起動してください（メニューの 5）。"));
     }

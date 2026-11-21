@@ -42,6 +42,8 @@ static class SelfTest
             Console.WriteLine("== GPT ディスクイメージ（ベアメタル復元の経路）");
             DiskImage(Path.Combine(work, "disk"));
             SelfTestJobs.Run(Path.Combine(work, "jobs"), Check);
+            Console.WriteLine("== 別の PC 向けの調整（レジストリの書き換え）");
+            Adapt();
         }
         finally
         {
@@ -173,6 +175,41 @@ static class SelfTest
         Maintenance.CollectGarbage(repo);
         repo.Unlock();
         Check(!Directory.Exists(repo.PointDir("broken")), "point.json の無い中断ポイントを削除");
+    }
+
+    /// <summary>HKCU に作った作り物の SYSTEM ハイブで HardwareAdapt.FixServices を確かめる（管理者権限は不要）。</summary>
+    static void Adapt()
+    {
+        const string path = @"Software\DiskVaultSelfTest-" + "adapt";
+        Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(path, false);
+        try
+        {
+            using (var sys = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(path))
+            {
+                foreach (var cs in new[] { "ControlSet001", "ControlSet002" })
+                {
+                    using var svc = sys.CreateSubKey($@"{cs}\Services");
+                    using (var k = svc.CreateSubKey("storahci")) { k.SetValue("Start", 3); k.SetValue("Type", 1); k.CreateSubKey(@"StartOverride").SetValue("0", 3); }
+                    using (var k = svc.CreateSubKey("stornvme")) { k.SetValue("Start", 0); k.SetValue("Type", 1); }
+                    using (var k = svc.CreateSubKey("iaStorV")) { k.SetValue("Start", 4); k.SetValue("Type", 1); }  // ドライバのファイルがない
+                    using (var k = svc.CreateSubKey("LSI_SAS")) { k.SetValue("Start", 3); k.SetValue("Type", 2); }  // カーネルドライバではない
+                    using (var k = svc.CreateSubKey("Spooler")) { k.SetValue("Start", 2); k.SetValue("Type", 16); } // 対象外
+                }
+                sys.CreateSubKey("Select").SetValue("Current", 1);
+            }
+            List<string> changed;
+            using (var sys = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(path, true)!)
+                changed = HardwareAdapt.FixServices(sys, name => name != "iaStorV");
+            using var r = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(path)!;
+            int Start(string cs, string n) => (int)r.OpenSubKey($@"{cs}\Services\{n}")!.GetValue("Start")!;
+            Check(changed.SequenceEqual(["storahci"]), $"変更したドライバは storahci だけ（{string.Join(",", changed)}）");
+            Check(Start("ControlSet001", "storahci") == 0 && Start("ControlSet002", "storahci") == 0, "storahci を全コントロールセットでブート開始に");
+            Check(r.OpenSubKey(@"ControlSet001\Services\storahci\StartOverride") == null && r.OpenSubKey(@"ControlSet002\Services\storahci\StartOverride") == null, "StartOverride を削除");
+            Check(Start("ControlSet001", "iaStorV") == 4 && Start("ControlSet001", "LSI_SAS") == 3 && Start("ControlSet001", "Spooler") == 2, "ファイルのないドライバ・対象外のサービスは変えない");
+            using (var sys = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(path, true)!)
+                Check(HardwareAdapt.FixServices(sys, name => name != "iaStorV").Count == 0, "2 回目は変更なし");
+        }
+        finally { Microsoft.Win32.Registry.CurrentUser.DeleteSubKeyTree(path, false); }
     }
 
     static void DiskImage(string dir)

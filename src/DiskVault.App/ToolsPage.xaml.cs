@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using DiskVault.Platform;
 
 namespace DiskVault.App;
 
@@ -31,7 +32,7 @@ public partial class ToolsPage : UserControl, IPage
 
     async void Driver_Click(object sender, RoutedEventArgs e)
     {
-        if (Dialogs.PickOpenFile(Window.GetWindow(this), T("ドライバ（.inf）"), ".inf") is { } f) await RunCapture("drvload", $"\"{f}\"");
+        if (Dialogs.PickOpenFile(Window.GetWindow(this), T("ドライバ（.inf）"), ".inf") is { } f) { HardwareAdapt.RememberLoaded(f); await RunCapture("drvload", $"\"{f}\""); }
     }
 
     void Cmd_Click(object sender, RoutedEventArgs e) => Process.Start(new ProcessStartInfo("cmd.exe") { UseShellExecute = true });

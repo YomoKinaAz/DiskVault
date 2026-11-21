@@ -13,7 +13,19 @@ public static class OfflineWindows
     /// オフラインの SYSTEM ハイブを一時的に読み込んでコンピューター名を返す（失敗したら null）。
     /// 回復環境でのバックアップを、通常のジョブと同じ「保存先\PC 名\…」に置くために使う。
     /// </summary>
-    public static string? ComputerName(string letter)
+    public static string? ComputerName(string letter) => WithSystemHive(letter, sys =>
+    {
+        using var sel = sys.OpenSubKey("Select");
+        int cs = sel?.GetValue("Current") is int c ? c : 1;
+        using var k = sys.OpenSubKey($@"ControlSet{cs:000}\Control\ComputerName\ComputerName");
+        return k?.GetValue("ComputerName") as string;
+    });
+
+    /// <summary>
+    /// オフラインの SYSTEM ハイブを一時的に HKLM に読み込んで f を呼ぶ（書き込み可）。読み込めなければ null。
+    /// 終わったら必ずアンロードする（開いたキーが残っているとアンロードできないので f の中で Dispose すること）。
+    /// </summary>
+    public static T? WithSystemHive<T>(string letter, Func<RegistryKey, T> f) where T : class?
     {
         var hive = $@"{letter.TrimEnd('\\')}\Windows\System32\config\SYSTEM";
         if (!File.Exists(hive)) return null;
@@ -21,10 +33,8 @@ public static class OfflineWindows
         if (!Reg($@"load HKLM\{key} ""{hive}""")) return null;
         try
         {
-            using var sel = Registry.LocalMachine.OpenSubKey($@"{key}\Select");
-            int cs = sel?.GetValue("Current") is int c ? c : 1;
-            using var k = Registry.LocalMachine.OpenSubKey($@"{key}\ControlSet{cs:000}\Control\ComputerName\ComputerName");
-            return k?.GetValue("ComputerName") as string;
+            using var root = Registry.LocalMachine.OpenSubKey(key, writable: true);
+            return root == null ? null : f(root);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException) { return null; }
         finally

@@ -87,6 +87,7 @@ public partial class RestoreTargetWindow : Window
             SubHeader.Text = T("復元先ディスクの内容はすべて消去され、パーティション構成ごと書き戻されます（ベアメタル復元）。大きいディスクには広げて、小さいディスクには NTFS を縮めて復元できます（下の「パーティションの配置」）。");
             BootFixBox.Visibility = Sys.IsWinPE ? Visibility.Visible : Visibility.Collapsed;
             BootFixBox.IsChecked = Sys.IsWinPE;
+            AdaptBox.Visibility = Visibility.Visible;
         }
         ImagePath.Text = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), vol != null ? $"restore-{p.Id}-vol{vol.Index}.img" : $"restore-{p.Id}-disk.img");
         Loaded += async (_, _) =>
@@ -267,8 +268,16 @@ public partial class RestoreTargetWindow : Window
             return;
         }
 
+        bool adapt = _disk != null && AdaptBox.IsChecked == true;
+        var driverDir = DriverPath.Text.Trim();
+        if (adapt && driverDir.Length > 0 && !Directory.Exists(driverDir))
+        {
+            MessageBox.Show(T("ドライバのフォルダが見つかりません: {0}", driverDir));
+            return;
+        }
+
         _running = true;
-        StartButton.IsEnabled = Targets.IsEnabled = ImageRadio.IsEnabled = BootFixBox.IsEnabled = false;
+        SetInputs(false);
         ProgressPanel.Visibility = Visibility.Visible;
         _cts = new CancellationTokenSource();
         var log = new List<string>();
@@ -284,7 +293,7 @@ public partial class RestoreTargetWindow : Window
             MessageBox.Show(LayoutStatus.Text, T("パーティションの配置"), MessageBoxButton.OK, MessageBoxImage.Warning);
             ProgressPanel.Visibility = Visibility.Collapsed;
             _running = false;
-            StartButton.IsEnabled = Targets.IsEnabled = ImageRadio.IsEnabled = true;
+            SetInputs(true);
             return;
         }
         var layout = _layout;
@@ -305,6 +314,9 @@ public partial class RestoreTargetWindow : Window
                 }
                 if (_vol != null && device && _vol.FileSystem == "NTFS")
                     try { lock (log) log.Add(NtfsResize.Extend(path).Trim()); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+                if (adapt && device && int.TryParse(path[@"\\.\PhysicalDrive".Length..], out var adn))
+                    lock (log) log.AddRange(HardwareAdapt.RunOnDisk(adn, driverDir.Length > 0 ? [driverDir] : null));
+                else if (adapt) lock (log) log.Add(T("イメージファイルのため、別の PC 向けの調整は行いませんでした。"));
                 if (bootFix && device && _disk != null && int.TryParse(path[@"\\.\PhysicalDrive".Length..], out var dn))
                     lock (log) log.AddRange(BootFix.Run(dn, _disk));
             });
@@ -324,8 +336,19 @@ public partial class RestoreTargetWindow : Window
         finally
         {
             _running = false;
-            StartButton.IsEnabled = Targets.IsEnabled = ImageRadio.IsEnabled = true;
+            SetInputs(true);
         }
+    }
+
+    void SetInputs(bool on) =>
+        StartButton.IsEnabled = Targets.IsEnabled = ImageRadio.IsEnabled = BootFixBox.IsEnabled = AdaptBox.IsEnabled = DriverPanel.IsEnabled = on;
+
+    void AdaptBox_Changed(object sender, RoutedEventArgs e) =>
+        DriverPanel.Visibility = AdaptBox.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+
+    void BrowseDriver_Click(object sender, RoutedEventArgs e)
+    {
+        if (Dialogs.PickFolder(this, T("ドライバのフォルダ（.inf を含む。サブフォルダも探します）"), DriverPath.Text) is { } p) DriverPath.Text = p;
     }
 
     static IVolumeTarget Targets_Open(string path, long size) => Engine.Targets.Open(path, size, confirmed: true);

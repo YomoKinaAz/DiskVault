@@ -14,6 +14,7 @@
 - **Destinations**: local drives, USB disks and NAS (SMB shares with stored credentials).
 - **E-mail notifications** via SMTP (STARTTLS / SSL), always or only on warnings and failures.
 - **Restore**: single files, whole volumes, or the whole disk (bare-metal, GPT/MBR with partition GUIDs). NTFS partitions can be grown or shrunk, and moved (drag the partition bar in the UI); boot sectors are fixed up accordingly.
+- **Restore to different hardware**: "Adapt for a different PC" (or `dvault adapt`) makes a restored Windows boot on another motherboard / storage controller: the standard AHCI, NVMe and RAID drivers are set to load at boot, extra drivers (e.g. Intel VMD/RST) are injected with DISM, and the hibernation file is discarded. Windows may need to be re-activated on the new hardware, and OEM licenses are not transferable.
 - **VSS writers**: application-consistent snapshots (SQL Server etc.) with fallback to crash-consistent.
 - **Back up from existing shadow copies**: pick a shadow copy Windows already keeps (System Restore points, Previous Versions) and back up the disk as it was at that moment — e.g. from before a bad update or a malware infection (dvault shadows, --shadow <ID>, or "From a shadow copy…" on the dashboard).
 - **Recovery media**: builds a WinPE USB stick or ISO with the Windows ADK; it boots straight into DiskVault's recovery UI, which can also take an offline full backup of the stopped Windows disk.
@@ -71,6 +72,7 @@ Windows 用のディスクイメージ バックアップです。
 - **メール通知**: SMTP（STARTTLS / SSL）で送ります。毎回送るか、警告・失敗のときだけ送るかを選べます。
 - **復元**: ファイル単位・ボリューム単位・ディスク全体（ベアメタル復元。GPT/MBR とパーティション GUID を含む）で復元できます。ディスク全体の復元では NTFS パーティションを広げる（復元後に FSCTL_EXTEND_VOLUME）ことも、縮める（使用中データが収まる範囲でオフライン書き換え）こともでき、パーティションの開始位置も動かせます（GUI ではバーをマウスでドラッグ）。開始位置が変わったときはブートセクタの開始セクタ（hidden sectors）も書き換えます。
 - **既存のシャドウコピーからバックアップ**: Windows に残っているシャドウコピー（システムの復元ポイントや「以前のバージョン」）を選んで、その時点の内容でバックアップします。更新やウイルスで壊れる前の状態を取っておけます（ダッシュボードの「シャドウコピーから…」、dvault shadows と --shadow <ID>）。
+- **別の PC への復元**: 「別の PC（元と違うハードウェア）向けに調整する」（`dvault adapt`）で、マザーボードやストレージのコントローラーが違う PC でも起動できるようにします。標準の AHCI・NVMe・RAID ドライバを起動時に読み込むようにし、指定したドライバ（Intel VMD/RST など）を DISM で追加し、休止状態のファイルを消します。新しい PC では Windows の再認証が必要になることがあります（メーカー製 PC 付属の OEM ライセンスは移せません）。
 - **VSS ライター連携**: IVssBackupComponents で全ボリュームを 1 つのスナップショットセットにし、SQL Server などのライターと連携します（アプリ整合）。失敗したらクラッシュ整合に切り替えて警告を残します。「VSS 完全バックアップ」を選ぶとトランザクションログを切り捨てます（既定はコピー）。
 - **回復メディア**: Windows ADK + WinPE アドオンで、USB メモリまたは ISO を作ります。起動すると DiskVault の回復画面が開きます。作り終えたら、同じ画面の「アンインストール」（`dvault media --uninstall-adk`）で ADK と WinPE アドオンを削除できます。
 - **回復環境からのバックアップ**: 回復メディアで起動し、「バックアップ」画面（文字版は `dvault recover` の 6）から、停止中の Windows のディスク全体をフルバックアップできます。スナップショットは使わずに直接読み、`<保存先>\<PC 名>\回復環境` に保存します（PC 名はオフラインのレジストリから取得）。
@@ -110,6 +112,7 @@ Windows 用のディスクイメージ バックアップです。
 - `tests\ntfs_test.ps1` … WSL の ntfs-3g で作った NTFS で「フル → 増分 × 2」を取り、各ポイントの復元をマウントしてハッシュで照合し、ファイル単位の取り出しも確認
 - `tests\resize_test.ps1` … 復元時の NTFS 縮小・パーティション拡張（ntfsresize --check とハッシュ照合）
 - `tests\admin_vss_resize.ps1` … 管理者として実行。VSS ライター連携のスナップショットと、VHDX への拡張／縮小復元（chkdsk・ハッシュ照合）
+- `tests\admin_adapt.ps1` … 管理者として実行。この PC の SYSTEM ハイブのコピーで「別の PC 向けの調整」のレジストリ書き換えを確認
 - `tests\live_admin.ps1` … 管理者として実行。この PC の EFI・回復パーティションを VSS からバックアップ・復元し、回復メディアの ISO を作る
 - `tests\vm.py`, `tests\make_bmr.py` … WSL の QEMU（KVM + OVMF）で回復メディアを起動し、ベアメタル復元を確認
 

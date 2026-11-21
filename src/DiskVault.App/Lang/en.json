@@ -373,5 +373,11 @@
   "履歴とログを": "Keep history and logs for",
   "履歴を残す日数は 7〜3650 にしてください。": "The number of days to keep history must be 7 to 3650.",
   "履歴を読めません（管理者として実行してください）。": "Cannot read the history (run as administrator).",
-  "例: \\\\nas\\share\\Backup（NAS）や E:\\Backup（USB ディスク）。この中に「PC 名\\ジョブ名」のフォルダを作ります。": "e.g. \\\\nas\\share\\Backup (NAS) or E:\\Backup (USB disk). A \"PC name\\job name\" folder is created inside it."
+  "例: \\\\nas\\share\\Backup（NAS）や E:\\Backup（USB ディスク）。この中に「PC 名\\ジョブ名」のフォルダを作ります。": "e.g. \\\\nas\\share\\Backup (NAS) or E:\\Backup (USB disk). A \"PC name\\job name\" folder is created inside it.",
+  "ドライバのフォルダが見つかりません: {0}": "Driver folder not found: {0}",
+  "イメージファイルのため、別の PC 向けの調整は行いませんでした。": "Hardware adaptation was skipped because the target is an image file.",
+  "ドライバのフォルダ（.inf を含む。サブフォルダも探します）": "Driver folder (containing .inf files; subfolders are searched too)",
+  "別の PC（元と違うハードウェア）向けに調整する": "Adapt for a different PC (different hardware)",
+  "ストレージのドライバ（AHCI・NVMe・RAID）を起動時に読み込むようにし、指定したドライバを追加します。マザーボードやストレージが違う PC に復元するときに使います。": "Makes the storage drivers (AHCI, NVMe, RAID) load at boot and adds the drivers you specify. Use this when restoring to a PC with a different motherboard or storage controller.",
+  "追加するドライバ（任意）:": "Drivers to add (optional):"
 }

@@ -36,6 +36,7 @@ static class Program
                 "prune" => Prune(a),
                 "volumes" => Volumes(a),
                 "shadows" => Shadows(),
+                "adapt" => Adapt(a),
                 "selftest" => SelfTest.Run(a),
                 "bench" => Bench.Run(a),
                 "recover" => Recover.Run(a),
@@ -75,9 +76,11 @@ static class Program
           dvault restore-disk <repo> <point> <out.img|\\.\PhysicalDriveN> [--disk N] [--size 容量] [--yes]
                               [--resize auto | 3=max | 3=80GB,4=1GB]   （パーティションのサイズ変更。NTFS のみ）
                               [--gap 2=300MB,...]（パーティションの前に空きを入れて開始位置をずらす）
+                              [--adapt [--drivers フォルダ]]（別の PC 向けに調整する。dvault adapt と同じ）
           dvault ls <repo> <point> <vol> [パス]
           dvault extract <repo> <point> <vol> <パス> <出力先>
           dvault prune <repo> --keep N
+          dvault adapt <X:> [--drivers フォルダ]  （復元した Windows を別の PC で起動できるように調整：ストレージのドライバ・ドライバ追加）
           dvault volumes
           dvault shadows                         （既存のシャドウコピー＝システムの復元ポイントなどの一覧）
           dvault media --iso out.iso | --usb N  [--app 発行フォルダ] [--no-drivers] [--drivers フォルダ]
@@ -102,6 +105,17 @@ static class Program
     static string? Password(Args a) => a.Opt("password") ?? Environment.GetEnvironmentVariable("DVAULT_PASSWORD");
 
     static Repository OpenRepo(Args a, int pos = 0) => Repository.Open(a.Pos(pos) ?? throw new ArgumentException(T("リポジトリを指定してください。")), Password(a));
+
+    // ---- adapt ----
+
+    static int Adapt(Args a)
+    {
+        var drive = a.Pos(0) ?? throw new ArgumentException(T("復元した Windows のドライブ（例 E:）を指定してください。"));
+        if (!Sys.IsAdmin) throw new UnauthorizedAccessException(T("管理者として実行してください。"));
+        if (a.Opt("drivers") is { } d && !Directory.Exists(d)) throw new ArgumentException(T("ドライバのフォルダが見つかりません: {0}", d));
+        foreach (var l in HardwareAdapt.Run(drive, a.Opt("drivers") is { } dd ? [dd] : null)) Console.WriteLine(l);
+        return 0;
+    }
 
     // ---- backup ----
 
@@ -272,6 +286,12 @@ static class Program
             else Console.WriteLine(T("  イメージファイルのため NTFS の拡張は行いません（使うときに「ディスクの管理」でボリュームを拡張してください）。"));
         }
         Console.WriteLine(T("ディスク {0} を {1} に復元しました。", di, outPath));
+        if (a.Flag("adapt"))
+        {
+            var m2 = System.Text.RegularExpressions.Regex.Match(outPath, @"PhysicalDrive(\d+)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (device && m2.Success) foreach (var l in HardwareAdapt.RunOnDisk(int.Parse(m2.Groups[1].Value), a.Opt("drivers") is { } d ? [d] : null)) Console.WriteLine(l);
+            else Console.WriteLine(T("イメージファイルのため、別の PC 向けの調整は行いませんでした。"));
+        }
         return 0;
     }
 
@@ -438,7 +458,7 @@ sealed class Args
         }
     }
 
-    static bool IsFlag(string n) => n is "full" or "sparse" or "yes" or "no-exclude" or "keep-work" or "no-drivers" or "english" or "extend" or "crash-consistent" or "vss-full" or "offline" or "uninstall-adk";
+    static bool IsFlag(string n) => n is "full" or "sparse" or "yes" or "no-exclude" or "keep-work" or "no-drivers" or "english" or "extend" or "crash-consistent" or "vss-full" or "offline" or "uninstall-adk" or "adapt";
 
     public string? Pos(int i) => i < Positional.Count ? Positional[i] : null;
     public string? Opt(string n) => _opts.TryGetValue(n, out var v) ? v : null;

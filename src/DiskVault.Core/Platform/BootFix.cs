@@ -13,15 +13,7 @@ public static partial class BootFix
     public static List<string> Run(int diskNumber, DiskRecord disk)
     {
         var log = new List<string>();
-        // 新しいパーティションのボリュームが現れるのを待つ
-        List<VolumeInfo> vols = [];
-        for (int i = 0; i < 20; i++)
-        {
-            vols = VolumeInfo.Enumerate().Where(v => v.Disk == diskNumber).ToList();
-            if (vols.Any(v => v.Letter != null && Directory.Exists(Path.Combine(v.Letter + "\\", "Windows", "System32")))) break;
-            Thread.Sleep(1000);
-        }
-        var win = vols.FirstOrDefault(v => v.Letter != null && Directory.Exists(Path.Combine(v.Letter + "\\", "Windows", "System32")));
+        var (win, vols) = WaitWindows(diskNumber);
         if (win == null)
         {
             log.Add(T("ブート構成: 復元したディスクに Windows フォルダが見つからないため、bcdboot は実行しませんでした。"));
@@ -61,6 +53,23 @@ public static partial class BootFix
         }
         return log;
     }
+
+    /// <summary>復元したディスクの Windows のボリューム（ドライブ文字つき）。新しいパーティションが現れるまで最大 20 秒待つ。</summary>
+    static (VolumeInfo? Win, List<VolumeInfo> Vols) WaitWindows(int diskNumber)
+    {
+        List<VolumeInfo> vols = [];
+        for (int i = 0; i < 20; i++)
+        {
+            vols = VolumeInfo.Enumerate().Where(v => v.Disk == diskNumber).ToList();
+            var win = vols.FirstOrDefault(v => v.Letter != null && Directory.Exists(Path.Combine(v.Letter + "\\", "Windows", "System32")));
+            if (win != null) return (win, vols);
+            Thread.Sleep(1000);
+        }
+        return (null, vols);
+    }
+
+    /// <summary>復元したディスクの Windows のドライブ（"E:"）。なければ null。</summary>
+    public static string? FindWindows(int diskNumber) => WaitWindows(diskNumber).Win?.Letter;
 
     static string? FreeLetter()
     {

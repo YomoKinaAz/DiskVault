@@ -17,7 +17,17 @@
                     <Button x:Name="StartButton" Content="{local:Tr '復元を開始'}" Style="{StaticResource Primary}" Click="Start_Click"/>
                     <Button x:Name="CloseButton" Content="{local:Tr '閉じる'}" Click="Close_Click" Margin="0"/>
                 </StackPanel>
-                <CheckBox x:Name="BootFixBox" Content="{local:Tr '復元後にブート構成を作り直す（bcdboot）'}" Visibility="Collapsed"/>
+                <StackPanel VerticalAlignment="Center">
+                    <CheckBox x:Name="BootFixBox" Content="{local:Tr '復元後にブート構成を作り直す（bcdboot）'}" Visibility="Collapsed"/>
+                    <CheckBox x:Name="AdaptBox" Content="{local:Tr '別の PC（元と違うハードウェア）向けに調整する'}" Visibility="Collapsed" Margin="0,4,0,0"
+                              Checked="AdaptBox_Changed" Unchecked="AdaptBox_Changed"
+                              ToolTip="{local:Tr 'ストレージのドライバ（AHCI・NVMe・RAID）を起動時に読み込むようにし、指定したドライバを追加します。マザーボードやストレージが違う PC に復元するときに使います。'}"/>
+                    <StackPanel x:Name="DriverPanel" Orientation="Horizontal" Margin="22,4,0,0" Visibility="Collapsed">
+                        <TextBlock Text="{local:Tr '追加するドライバ（任意）:'}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox x:Name="DriverPath" Width="260"/>
+                        <Button Content="{local:Tr '参照…'}" Click="BrowseDriver_Click" Margin="6,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
             </DockPanel>
         </StackPanel>
         <DockPanel>

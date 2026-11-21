@@ -163,6 +163,9 @@ public static class MediaBuilder
             var appDst = Path.Combine(mount, "DiskVault");
             CopyDir(o.AppDir, appDst, skip: f => f.EndsWith("DiskVaultService.exe", StringComparison.OrdinalIgnoreCase)
                                                  || f.EndsWith(".pdb", StringComparison.OrdinalIgnoreCase));
+            // 追加のドライバは、復元した Windows にも入れられるようにメディアにも置く（HardwareAdapt.DefaultDriverFolders）
+            if (!string.IsNullOrEmpty(o.ExtraDrivers) && Directory.Exists(o.ExtraDrivers))
+                CopyDir(o.ExtraDrivers, Path.Combine(appDst, "drivers"), skip: _ => false);
             File.WriteAllText(Path.Combine(mount, "Windows", "System32", "startnet.cmd"), StartNet(o.Japanese).ReplaceLineEndings("\r\n"), new UTF8Encoding(false));
 
             log(T("変更を保存しています（数分かかります）…"));

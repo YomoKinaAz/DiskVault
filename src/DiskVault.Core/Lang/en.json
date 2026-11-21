@@ -293,5 +293,15 @@
   "未初期化": "Not initialized",
   "未対応のリポジトリ形式 {0}。": "Unsupported repository format {0}.",
   "未知の圧縮方式 {0}。": "Unknown compression method {0}.",
-  "予定": "scheduled"
+  "予定": "scheduled",
+  "別の PC 向けの調整: 復元したディスクに Windows が見つからないため行いませんでした。": "Hardware adaptation: skipped because no Windows was found on the restored disk.",
+  "実行中の Windows（{0}）は調整できません。復元したディスクの Windows を指定してください。": "The running Windows ({0}) cannot be adapted. Specify the Windows on the restored disk.",
+  "別の PC 向けの調整: {0} に Windows が見つからないため行いませんでした。": "Hardware adaptation: skipped because no Windows was found on {0}.",
+  "別の PC 向けの調整: レジストリを読み込めませんでした（管理者権限が必要です）。": "Hardware adaptation: could not load the registry (administrator rights are required).",
+  "ストレージ用ドライバ: 変更は必要ありませんでした。": "Storage drivers: no changes were needed.",
+  "ストレージ用ドライバを起動時に読み込むようにしました: {0}": "Storage drivers set to load at boot: {0}",
+  "休止状態のファイル（hiberfil.sys）を削除しました。": "Deleted the hibernation file (hiberfil.sys).",
+  "hiberfil.sys を削除できません: {0}": "Cannot delete hiberfil.sys: {0}",
+  "ドライバを追加しました: {0}": "Added drivers: {0}",
+  "ドライバの追加に失敗しました（{0}、終了コード {1}）: {2}": "Failed to add drivers ({0}, exit code {1}): {2}"
 }
