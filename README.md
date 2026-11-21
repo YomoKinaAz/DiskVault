@@ -113,6 +113,7 @@ Windows 用のディスクイメージ バックアップです。
 - `tests\resize_test.ps1` … 復元時の NTFS 縮小・パーティション拡張（ntfsresize --check とハッシュ照合）
 - `tests\admin_vss_resize.ps1` … 管理者として実行。VSS ライター連携のスナップショットと、VHDX への拡張／縮小復元（chkdsk・ハッシュ照合）
 - `tests\admin_adapt.ps1` … 管理者として実行。この PC の SYSTEM ハイブのコピーで「別の PC 向けの調整」のレジストリ書き換えを確認
+- `tests\vmwin\` … QEMU で Windows 11 を AHCI のディスクにインストールし、バックアップ → 調整付きの復元 → NVMe で起動できることを確認（手順は同じフォルダの README）
 - `tests\live_admin.ps1` … 管理者として実行。この PC の EFI・回復パーティションを VSS からバックアップ・復元し、回復メディアの ISO を作る
 - `tests\vm.py`, `tests\make_bmr.py` … WSL の QEMU（KVM + OVMF）で回復メディアを起動し、ベアメタル復元を確認
 
