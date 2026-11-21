@@ -49,7 +49,7 @@ Release binaries are built from this repository by GitHub Actions ([build.yml](.
 
 # DiskVault イメージバックアップ
 
-Windows 用のディスクイメージ バックアップです（Arcserve UDP のような使い方を想定）。
+Windows 用のディスクイメージ バックアップです。
 
 - **フル／増分バックアップ**: VSS スナップショットから、NTFS の使用中ブロックだけを 256KiB 単位で読みます。重複排除と zstd 圧縮をかけ、AES-256 で暗号化することもできます。
 - **復元ポイント**: どのポイントも単独で完全に復元できます（合成フル）。古いポイントは保持数に従って自動で削除し、使われなくなったデータを回収します。
