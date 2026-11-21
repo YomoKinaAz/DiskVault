@@ -24,7 +24,7 @@
 Download the MSI from [Releases](https://github.com/YomoKinaAz/DiskVault/releases). Requires Windows 10 2004 or later (x64). The .NET runtime is included.
 
 > [!IMPORTANT]
-> **Turn off Smart App Control before installing.** The binaries are not code-signed yet, so on PCs where Smart App Control is on, Windows blocks DiskVault and the installation fails (or the service cannot start: "blocked by an application control policy").
+> **Turn off Smart App Control before installing.** The binaries are not code-signed yet, so on PCs where Smart App Control is on, the DiskVault service cannot be started at the end of the installation ("blocked by an application control policy"), and backups do not run.
 > Open **Windows Security → App & browser control → Smart App Control settings** and select **Off**. On some Windows versions, Smart App Control cannot be turned back on without reinstalling Windows.
 > PCs where Smart App Control is already off (or not available) need no change.
 
@@ -61,7 +61,7 @@ Windows 用のディスクイメージ バックアップです。
 [Releases](https://github.com/YomoKinaAz/DiskVault/releases) から MSI をダウンロードして実行します。Windows 10 2004 以降（x64）に対応し、.NET ランタイムは同梱しています。
 
 > [!IMPORTANT]
-> **インストールの前に、スマート アプリ コントロールをオフにしてください。** まだコード署名をしていないため、スマート アプリ コントロールがオンの PC では DiskVault がブロックされ、インストールに失敗します（またはサービスの起動時に「アプリケーション制御ポリシーによってブロックされました」と出ます）。
+> **インストールの前に、スマート アプリ コントロールをオフにしてください。** まだコード署名をしていないため、スマート アプリ コントロールがオンの PC では、インストールの最後に DiskVault のサービスを起動できません（「アプリケーション制御ポリシーによってブロックされました」と出ます）。この状態ではバックアップが動きません。
 > **Windows セキュリティ → アプリとブラウザーの制御 → スマート アプリ コントロールの設定** で **オフ** を選んでください。Windows のバージョンによっては、一度オフにすると Windows を再インストールしないとオンに戻せません。
 > もともとオフ（または使えない）PC では、何もする必要はありません。
 
