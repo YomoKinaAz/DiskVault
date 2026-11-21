@@ -26,10 +26,13 @@ public static class HardwareAdapt
     ];
 
     /// <summary>復元したディスク（物理ディスク番号）の Windows を調整する。</summary>
-    public static List<string> RunOnDisk(int diskNumber, IEnumerable<string>? driverFolders = null, CancellationToken ct = default) =>
-        BootFix.FindWindows(diskNumber) is { } w
-            ? Run(w, driverFolders, ct)
-            : [T("別の PC 向けの調整: 復元したディスクに Windows が見つからないため行いませんでした。")];
+    public static List<string> RunOnDisk(int diskNumber, IEnumerable<string>? driverFolders = null, CancellationToken ct = default)
+    {
+        var (w, temp) = BootFix.FindWindows(diskNumber);
+        if (w == null) return [T("別の PC 向けの調整: 復元したディスクに Windows が見つからないため行いませんでした。")];
+        try { return Run(w, driverFolders, ct); }
+        finally { BootFix.ReleaseLetter(temp); }
+    }
 
     public static List<string> Run(string windowsDrive, IEnumerable<string>? driverFolders = null, CancellationToken ct = default)
     {

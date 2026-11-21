@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """WSL の QEMU (KVM + OVMF) で回復メディアやディスクイメージを起動するテスト用ツール。
 
-  vm.py start NAME [--iso X] [--disk IMG ...] [--mem 4096]   起動（ディスクは AHCI、最初の --disk が disk0）
+  vm.py start NAME [--iso X] [--iso2 X] [--disk IMG ...] [--mem 4096] [--smp 2] [--nvme] [--nonet]
+                                                              起動（ディスクは AHCI、--nvme なら NVMe。最初の --disk が disk0。
+                                                              .qcow2 は qcow2、それ以外は raw / .vhdx は vhdx）
   vm.py shot NAME OUT.png                                     画面を PNG で保存
   vm.py keys NAME TEXT                                        文字列を打つ（\\n で Enter）
   vm.py key NAME KEY                                          キーを 1 つ（ret, esc, tab, f12 など）
@@ -39,28 +41,36 @@ def monitor(name, cmd):
 
 
 def start(name, args):
-    iso, disks, mem, boot_disk = None, [], "4096", False
+    iso, iso2, disks, mem, smp, nvme, net = None, None, [], "4096", "2", False, True
     i = 0
     while i < len(args):
         if args[i] == "--iso": iso = args[i + 1]; i += 2
         elif args[i] == "--disk": disks.append(args[i + 1]); i += 2
         elif args[i] == "--mem": mem = args[i + 1]; i += 2
+        elif args[i] == "--smp": smp = args[i + 1]; i += 2
+        elif args[i] == "--iso2": iso2 = args[i + 1]; i += 2
+        elif args[i] == "--nvme": nvme = True; i += 1
+        elif args[i] == "--nonet": net = False; i += 1
         else: raise SystemExit(f"unknown arg {args[i]}")
     vars_fd = f"/tmp/dvvm-{name}-vars.fd"
     subprocess.run(["cp", OVMF_VARS, vars_fd], check=True)
-    cmd = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35", "-cpu", "host", "-smp", "2", "-m", mem,
+    cmd = ["qemu-system-x86_64", "-enable-kvm", "-machine", "q35", "-cpu", "host", "-smp", smp, "-m", mem,
            "-drive", f"if=pflash,format=raw,readonly=on,file={OVMF_CODE}",
            "-drive", f"if=pflash,format=raw,file={vars_fd}",
            "-device", "ahci,id=ahci",
-           "-netdev", "user,id=n0", "-device", "e1000,netdev=n0",
            "-display", "none", "-vga", "std",
            "-monitor", f"unix:{sock_path(name)},server,nowait",
            "-qmp", f"unix:/tmp/dvvm-{name}.qmp,server,nowait", "-device", "qemu-xhci", "-device", "usb-tablet",
            "-pidfile", f"/tmp/dvvm-{name}.pid", "-daemonize"]
+    cmd += ["-netdev", "user,id=n0", "-device", "e1000,netdev=n0"] if net else ["-nic", "none"]
     for n, d in enumerate(disks):
-        cmd += ["-drive", f"if=none,id=d{n},format=raw,file={d}", "-device", f"ide-hd,drive=d{n},bus=ahci.{n},bootindex={n + 2}"]
+        fmt = "qcow2" if d.endswith(".qcow2") else "vhdx" if d.endswith(".vhdx") else "raw"
+        cmd += ["-drive", f"if=none,id=d{n},format={fmt},file={d},cache=unsafe" if fmt == "qcow2" else f"if=none,id=d{n},format={fmt},file={d}"]
+        cmd += ["-device", f"nvme,drive=d{n},serial=dv{n},bootindex={n + 2}"] if nvme else ["-device", f"ide-hd,drive=d{n},bus=ahci.{n},bootindex={n + 2}"]
     if iso:
         cmd += ["-drive", f"if=none,id=cd,media=cdrom,readonly=on,file={iso}", "-device", f"ide-cd,drive=cd,bus=ahci.5,bootindex=1"]
+    if iso2:
+        cmd += ["-drive", f"if=none,id=cd2,media=cdrom,readonly=on,file={iso2}", "-device", "ide-cd,drive=cd2,bus=ahci.4"]
     subprocess.run(cmd, check=True)
     print("started", name)
 

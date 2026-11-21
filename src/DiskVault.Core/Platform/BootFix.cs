@@ -13,12 +13,19 @@ public static partial class BootFix
     public static List<string> Run(int diskNumber, DiskRecord disk)
     {
         var log = new List<string>();
-        var (win, vols) = WaitWindows(diskNumber);
+        var (win, winTemp, vols) = WaitWindows(diskNumber);
         if (win == null)
         {
             log.Add(T("ブート構成: 復元したディスクに Windows フォルダが見つからないため、bcdboot は実行しませんでした。"));
             return log;
         }
+        try { RunBcdboot(win, vols, disk, log); }
+        finally { ReleaseLetter(winTemp); }
+        return log;
+    }
+
+    static void RunBcdboot(string win, List<VolumeInfo> vols, DiskRecord disk, List<string> log)
+    {
         bool uefi = disk.Style == "GPT";
         var bootPart = uefi
             ? disk.Partitions.FirstOrDefault(p => string.Equals(p.TypeGuid, PartitionRecord.EspType, StringComparison.OrdinalIgnoreCase))
@@ -27,7 +34,7 @@ public static partial class BootFix
         if (bootVol == null)
         {
             log.Add(T("ブート構成: ブートパーティションが見つからないため、bcdboot は実行しませんでした。"));
-            return log;
+            return;
         }
         string? tempLetter = null;
         var sysLetter = bootVol.Letter;
@@ -40,7 +47,7 @@ public static partial class BootFix
         }
         try
         {
-            var args = $"{win.Letter}\\Windows /s {sysLetter} /f {(uefi ? "UEFI" : "BIOS")}";
+            var args = $"{win}\\Windows /s {sysLetter} /f {(uefi ? "UEFI" : "BIOS")}";
             var psi = new ProcessStartInfo("bcdboot.exe", args) { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
             using var p = Process.Start(psi)!;
             var o = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
@@ -51,25 +58,41 @@ public static partial class BootFix
         {
             if (tempLetter != null) DeleteVolumeMountPointW(tempLetter + "\\");
         }
-        return log;
     }
 
-    /// <summary>復元したディスクの Windows のボリューム（ドライブ文字つき）。新しいパーティションが現れるまで最大 20 秒待つ。</summary>
-    static (VolumeInfo? Win, List<VolumeInfo> Vols) WaitWindows(int diskNumber)
+    /// <summary>
+    /// 復元したディスクの Windows のドライブ。新しいパーティションが現れるまで最大 20 秒待つ。
+    /// ドライブ文字がなければ一時的に割り当てる（Temp。使い終わったら ReleaseLetter で外す）。
+    /// </summary>
+    static (string? Letter, string? Temp, List<VolumeInfo> Vols) WaitWindows(int diskNumber)
     {
         List<VolumeInfo> vols = [];
         for (int i = 0; i < 20; i++)
         {
             vols = VolumeInfo.Enumerate().Where(v => v.Disk == diskNumber).ToList();
             var win = vols.FirstOrDefault(v => v.Letter != null && Directory.Exists(Path.Combine(v.Letter + "\\", "Windows", "System32")));
-            if (win != null) return (win, vols);
+            if (win != null) return (win.Letter, null, vols);
+            if (i >= 3)
+            {
+                var g = vols.FirstOrDefault(v => v.Letter == null && !string.IsNullOrEmpty(v.GuidPath) && Directory.Exists(Path.Combine(v.GuidPath, "Windows", "System32")));
+                if (g != null && FreeLetter() is { } t && SetVolumeMountPointW(t + "\\", g.GuidPath)) return (t, t, vols);
+            }
             Thread.Sleep(1000);
         }
-        return (null, vols);
+        return (null, null, vols);
     }
 
-    /// <summary>復元したディスクの Windows のドライブ（"E:"）。なければ null。</summary>
-    public static string? FindWindows(int diskNumber) => WaitWindows(diskNumber).Win?.Letter;
+    /// <summary>復元したディスクの Windows のドライブ（"E:"）。Temp が null でなければ一時的に割り当てた文字（ReleaseLetter で外す）。</summary>
+    public static (string? Letter, string? Temp) FindWindows(int diskNumber)
+    {
+        var (l, t, _) = WaitWindows(diskNumber);
+        return (l, t);
+    }
+
+    public static void ReleaseLetter(string? temp)
+    {
+        if (temp != null) DeleteVolumeMountPointW(temp + "\\");
+    }
 
     static string? FreeLetter()
     {
