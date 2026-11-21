@@ -4,7 +4,7 @@
 
 [日本語の説明はこちら ↓](#diskvault-イメージバックアップ)
 
-> The user interface is currently Japanese only. An English UI is in progress (planned for 1.1).
+> The user interface is available in English and Japanese (Settings → Display language; "Auto" follows the Windows language).
 
 ## Features
 
