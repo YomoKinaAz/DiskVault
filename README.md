@@ -23,6 +23,11 @@
 
 Download the MSI from [Releases](https://github.com/YomoKinaAz/DiskVault/releases). Requires Windows 10 2004 or later (x64). The .NET runtime is included.
 
+> [!IMPORTANT]
+> **Turn off Smart App Control before installing.** The binaries are not code-signed yet, so on PCs where Smart App Control is on, Windows blocks DiskVault and the installation fails (or the service cannot start: "blocked by an application control policy").
+> Open **Windows Security → App & browser control → Smart App Control settings** and select **Off**. On some Windows versions, Smart App Control cannot be turned back on without reinstalling Windows.
+> PCs where Smart App Control is already off (or not available) need no change.
+
 ## Build
 
 ```powershell
@@ -50,6 +55,15 @@ Release binaries are built from this repository by GitHub Actions ([build.yml](.
 # DiskVault イメージバックアップ
 
 Windows 用のディスクイメージ バックアップです。
+
+## インストール
+
+[Releases](https://github.com/YomoKinaAz/DiskVault/releases) から MSI をダウンロードして実行します。Windows 10 2004 以降（x64）に対応し、.NET ランタイムは同梱しています。
+
+> [!IMPORTANT]
+> **インストールの前に、スマート アプリ コントロールをオフにしてください。** まだコード署名をしていないため、スマート アプリ コントロールがオンの PC では DiskVault がブロックされ、インストールに失敗します（またはサービスの起動時に「アプリケーション制御ポリシーによってブロックされました」と出ます）。
+> **Windows セキュリティ → アプリとブラウザーの制御 → スマート アプリ コントロールの設定** で **オフ** を選んでください。Windows のバージョンによっては、一度オフにすると Windows を再インストールしないとオンに戻せません。
+> もともとオフ（または使えない）PC では、何もする必要はありません。
 
 - **フル／増分バックアップ**: VSS スナップショットから、NTFS の使用中ブロックだけを 256KiB 単位で読みます。重複排除と zstd 圧縮をかけ、AES-256 で暗号化することもできます。
 - **復元ポイント**: どのポイントも単独で完全に復元できます（合成フル）。古いポイントは保持数に従って自動で削除し、使われなくなったデータを回収します。
